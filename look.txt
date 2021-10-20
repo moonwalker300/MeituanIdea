@@ -1,0 +1,62 @@
+2165
+0.4505016035788738 0.7869613744380445
+Inverse Propensity Score Weight STD and Mean 2.623295950915399 1.0241012608580342
+Optimal Policy Value: 1.955973917936804
+0 1.0
+1.0
+Density Ratio Estimation Weight STD and Mean 0.0 1.0
+10000.0
+Epoch 200, Loss 0.494237
+Epoch 400, Loss 0.490926
+Epoch 600, Loss 0.490467
+Epoch 800, Loss 0.460102
+Epoch 1000, Loss 0.397587
+Epoch 1200, Loss 0.342616
+Epoch 1400, Loss 0.323709
+Epoch 1600, Loss 0.314470
+Epoch 1800, Loss 0.270160
+Epoch 2000, Loss 0.300436
+Epoch 2200, Loss 0.268226
+Epoch 2400, Loss 0.323536
+Epoch 2600, Loss 0.271616
+Epoch 2800, Loss 0.238551
+Epoch 3000, Loss 0.225113
+Epoch 3200, Loss 0.246274
+Epoch 3400, Loss 0.216432
+Epoch 3600, Loss 0.222672
+Epoch 3800, Loss 0.210699
+Epoch 4000, Loss 0.196925
+Epoch 4200, Loss 0.221182
+Epoch 4400, Loss 0.210482
+Epoch 4600, Loss 0.202246
+Epoch 4800, Loss 0.192073
+Epoch 5000, Loss 0.189117
+Epoch 5200, Loss 0.209936
+Epoch 5400, Loss 0.197275
+Epoch 5600, Loss 0.180069
+Epoch 5800, Loss 0.179139
+Epoch 6000, Loss 0.176563
+Epoch 6200, Loss 0.165857
+Epoch 6400, Loss 0.166703
+Epoch 6600, Loss 0.157356
+Epoch 6800, Loss 0.155427
+Epoch 7000, Loss 0.150816
+Epoch 7200, Loss 0.148393
+Epoch 7400, Loss 0.148080
+Epoch 7600, Loss 0.145799
+Epoch 7800, Loss 0.142696
+Epoch 8000, Loss 0.142261
+Epoch 8200, Loss 0.138776
+Epoch 8400, Loss 0.136668
+Epoch 8600, Loss 0.136963
+Epoch 8800, Loss 0.135635
+Epoch 9000, Loss 0.134615
+Epoch 9200, Loss 0.133633
+Epoch 9400, Loss 0.133520
+Epoch 9600, Loss 0.132985
+Epoch 9800, Loss 0.132661
+Epoch 10000, Loss 0.132755
+0.3651537638263107
+0.4577119705879939
+Train: 0.3651537638263107
+Test: 0.4577119705879939

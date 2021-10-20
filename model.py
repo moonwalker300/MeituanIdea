@@ -1,0 +1,522 @@
+import torch
+from torch import nn
+from torch.nn import functional as F
+from torch import optim
+import numpy as np
+from torch.autograd import Variable
+import matplotlib.pyplot as plt
+
+def weights_init(m):
+    if isinstance(m, nn.Linear):
+        m.reset_parameters()
+        nn.init.constant_(m.bias.data, 0)
+
+class KernelEncoder(nn.Module):
+    def __init__(self, input_dim, output_dim, hidden_dim, n_layers):
+        super().__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.n_layers = n_layers
+        self.hidden_dim = [hidden_dim] * (self.n_layers - 1)
+        if self.n_layers == 1:
+            _fc_list = [nn.Linear(self.input_dim, self.output_dim)]
+        else:
+            _fc_list = [nn.Linear(self.input_dim, self.hidden_dim[0])]
+            for i in range(1, self.n_layers - 1):
+                _fc_list.append(nn.Linear(self.hidden_dim[i - 1], self.hidden_dim[i]))
+            _fc_list.append(nn.Linear(self.hidden_dim[self.n_layers - 2], self.output_dim))
+        self.fc = nn.ModuleList(_fc_list)
+        self.apply(weights_init)
+    def forward(self, x):
+        h = x
+        for c in range(self.n_layers):
+            if (c == self.n_layers - 1):
+                h = self.fc[c](h)
+            else:
+                h = F.elu(self.fc[c](h))
+        h = torch.cat((h, torch.ones([h.size()[0], 1])), dim = 1)
+        return h
+
+class PolicyNet(nn.Module):
+    def __init__(self, input_dim, hidden_dim, n_layers):
+        super().__init__()
+        self.input_dim = input_dim
+        self.n_layers = n_layers
+        self.hidden_dim = [hidden_dim] * (self.n_layers - 1)
+        if self.n_layers == 1:
+            _fc_list = [nn.Linear(self.input_dim, 1)]
+        else:
+            _fc_list = [nn.Linear(self.input_dim, self.hidden_dim[0])]
+            for i in range(1, self.n_layers - 1):
+                _fc_list.append(nn.Linear(self.hidden_dim[i - 1], self.hidden_dim[i]))
+            _fc_list.append(nn.Linear(self.hidden_dim[self.n_layers - 2], 1))
+        self.fc = nn.ModuleList(_fc_list)
+        self.apply(weights_init)
+    def forward(self, x):
+        h = x
+        for c in range(self.n_layers):
+            if (c == self.n_layers - 1):
+                h = self.fc[c](h)
+            else:
+                h = F.elu(self.fc[c](h))
+        h = torch.sigmoid(h)
+        return h
+
+class PolicyEvaluation:
+    def __init__(self, band_width):
+        self.band_width = band_width
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    def gaussian_kernel(self, t, t_tar):
+        return torch.exp(-((t - t_tar) / self.band_width) ** 2 / 2) / (self.band_width * np.sqrt(2 * np.pi))
+    def IPSestimator(self, x, t, y, ps, t_tar):
+        y_tensor = torch.FloatTensor(y).to(self.device)
+        ps_tensor = torch.FloatTensor(ps).to(self.device)
+        t_tensor = torch.FloatTensor(t).to(self.device)
+        tar_pb = self.gaussian_kernel(t_tensor, t_tar)
+        return torch.mean((tar_pb / ps_tensor) * y_tensor)
+    def SNIPSestimator(self, x, t, y, ps, t_tar):
+        y_tensor = torch.FloatTensor(y).to(self.device)
+        ps_tensor = torch.FloatTensor(ps).to(self.device)
+        t_tensor = torch.FloatTensor(t).to(self.device)
+        tar_pb = self.gaussian_kernel(t_tensor, t_tar)
+        return ((tar_pb / ps_tensor) * y_tensor).sum() / (tar_pb / ps_tensor).sum()
+    def DRestimator(self, x, t, y, ps, t_tar, model):
+        x_tensor = torch.FloatTensor(x).to(self.device)
+        y_tensor = torch.FloatTensor(y).to(self.device)
+        ps_tensor = torch.FloatTensor(ps).to(self.device)
+        t_tensor = torch.FloatTensor(t).to(self.device)
+        tar_pb = self.gaussian_kernel(t_tensor, t_tar)
+        y_pre = model.predict_gradient(x_tensor, t_tar)
+        return torch.mean((tar_pb / ps_tensor) * (y_tensor - y_pre)) + torch.mean(y_pre)
+    def DMestimator(self, x, t_tar, model):
+        x_tensor = torch.FloatTensor(x).to(self.device)
+        return torch.mean(model.predict_gradient(x_tensor, t_tar))
+
+class RegressModel(nn.Module):
+    def __init__(self, input_dim, hidden_dim, n_layers):
+        super().__init__()
+        self.input_dim = input_dim
+        self.n_layers = n_layers
+        self.hidden_dim = [hidden_dim] * (self.n_layers - 1)
+        if (self.n_layers > 1):
+            _fc_list = [nn.Linear(self.input_dim + 1, self.hidden_dim[0])]
+            for i in range(1, self.n_layers - 1):
+                _fc_list.append(nn.Linear(self.hidden_dim[i - 1], self.hidden_dim[i]))
+            self.output_layer = nn.Linear(self.hidden_dim[self.n_layers - 2], 1)
+        else:
+            _fc_list = []
+            self.output_layer = nn.Linear(self.input_dim + 1, 1)
+        self.fc = nn.ModuleList(_fc_list)
+        self.apply(weights_init)
+    def forward(self, x, t):
+        h = torch.cat((x, t), dim = 1)
+        for c in range(self.n_layers - 1):
+            h = F.elu(self.fc[c](h))
+        out = self.output_layer(h)
+        return out
+
+class VanillaModel:
+    def __init__(self, context_dim):
+        self.model = RegressModel(context_dim, 100, 3)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model.to(self.device)
+    def train(self, x, t, y, w):
+        n = x.shape[0]
+        batch_size = min(n, 512)
+        epochs = 60000
+        optimizer = optim.Adam(self.model.parameters(), lr=0.01)
+        mse = nn.MSELoss(reduction='mean')
+        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+        weight = (w.copy()).squeeze()
+        weight /= weight.sum()
+        last_loss = 1000000
+        current_loss = 0
+        last_ep = -1
+        intv = (int)(n / batch_size) + 1
+        for ep in range(epochs):
+            idx = np.random.choice(n, batch_size, replace = True, p = weight)
+            x_batch = torch.FloatTensor(x[idx]).to(self.device)
+            t_batch = torch.FloatTensor(t[idx]).to(self.device)
+            y_batch = torch.FloatTensor(y[idx]).to(self.device)
+            pre = self.model(x_batch, t_batch)
+            loss = mse(pre, y_batch)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            if ((ep + 1) % 1000 == 0):
+                print('Epoch %d, Loss %f' % (ep + 1, loss.detach().cpu().item()))
+                scheduler.step()
+            current_loss += loss.detach().cpu().item()
+            if ((ep + 1) % intv == 0):
+                if (last_loss > current_loss):
+                    last_loss = current_loss
+                    last_ep = ep
+                if (ep - last_ep > 2000):
+                    break
+                current_loss = 0
+
+    def predict(self, x, t):
+        batch_size = 512
+        n = x.shape[0]
+        y = np.zeros([n, 1])
+        for i in range(0, n, batch_size):
+            op, ed = i, min(i + batch_size, n)
+            x_batch = torch.FloatTensor(x[op:ed]).to(self.device)
+            t_batch = torch.FloatTensor(t[op:ed]).to(self.device)
+            y[op:ed] = self.model(x_batch, t_batch).detach().cpu().numpy()
+        return y
+
+    def predict_gradient(self, x, t):
+        return self.model(x, t)
+
+    def search_optimal_t(self, x):
+        n = x.shape[0]
+        resolution = 1000
+        t = np.zeros([n, 1])
+        x_t = torch.FloatTensor(x).to(self.device)
+        y = np.zeros([n, 1]) - 10000.0
+        for j in range(resolution + 1):
+            t_t = (torch.ones((n, 1)) * j * 1.0 / resolution).to(self.device)
+            pre = self.predict_gradient(x_t, t_t).detach().cpu().numpy()
+            idx = (pre > y)
+            t[idx] = j * 1.0 / resolution
+            y[idx] = pre[idx]
+        return t
+
+class MCDropoutModel(nn.Module):
+    def __init__(self, input_dim, hidden_dim, n_layers, keep_prob = 0.5):
+        super().__init__()
+        self.input_dim = input_dim
+        self.n_layers = n_layers
+        self.hidden_dim = [hidden_dim] * (self.n_layers - 1)
+        if (self.n_layers > 1):
+            _fc_list = [nn.Linear(self.input_dim + 1, self.hidden_dim[0])]
+            for i in range(1, self.n_layers - 1):
+                _fc_list.append(nn.Linear(self.hidden_dim[i - 1], self.hidden_dim[i]))
+            self.output_layer = nn.Linear(self.hidden_dim[self.n_layers - 2], 1)
+        else:
+            _fc_list = []
+            self.output_layer = nn.Linear(self.input_dim + 1, 1)
+        self.fc = nn.ModuleList(_fc_list)
+        self.dropout = nn.Dropout(p = 1 - keep_prob)
+    def weight_norm(self):
+        w = 0
+        for name, pa in self.named_parameters():
+            if ('weight' in name):
+                w += (pa.norm(2) ** 2)
+        return w
+    def bias_norm(self):
+        b = 0
+        for name, pa in self.named_parameters():
+            if ('bias' in name):
+                b += (pa.norm(2) ** 2)
+        return b
+    def forward(self, x, t):
+        h = torch.cat((x, t), dim = 1)
+        for c in range(self.n_layers - 1):
+            h = F.elu(self.fc[c](h))
+            #h = self.dropout(h)
+        out = self.output_layer(h)
+        return out
+
+
+class MCDropoutRegressor:
+    def __init__(self, context_dim, uncertainty = False):
+        self.kp = 1.0
+        self.lamb = 0.0000
+        self.model = MCDropoutModel(context_dim, 20, 3, self.kp)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model.to(self.device)
+    def train(self, x, t, y, w):
+        n = x.shape[0]
+        batch_size = min(n, 128)
+        epochs = 2000
+        optimizer = optim.SGD(self.model.parameters(), lr = 0.1, weight_decay = 1e-5)
+        mse = nn.MSELoss(reduction='none')
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = epochs, eta_min=1e-3)
+        weight = (w.copy())
+        weight /= weight.mean()
+        last_loss = 1000000
+        current_loss = 0
+        last_ep = -1
+        for ep in range(epochs):
+            current_loss = 0
+            idx = np.random.permutation(n)
+            for i in range(0, n, batch_size):
+                op, ed = i, min(i + batch_size, n)
+                x_batch = torch.FloatTensor(x[idx[op:ed]]).to(self.device)
+                t_batch = torch.FloatTensor(t[idx[op:ed]]).to(self.device)
+                y_batch = torch.FloatTensor(y[idx[op:ed]]).to(self.device)
+                w_batch = torch.FloatTensor(weight[idx[op:ed]]).to(self.device)
+                pre = self.model(x_batch, t_batch)
+                loss = (mse(pre, y_batch) * w_batch).mean() #+ 
+                    #(self.model.weight_norm() * self.kp + self.model.bias_norm()) * self.lamb
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                current_loss += loss.detach().cpu().item() * (ed - op)
+            if ((ep + 1) % 200 == 0):
+                print('Epoch %d, Loss %f' % (ep + 1, current_loss / n))
+            scheduler.step()
+            if (last_loss > current_loss):
+                last_loss = current_loss
+                last_ep = ep
+            if (ep - last_ep > 5000):
+                break
+    def predict_one(self, x, t):
+        res = 0
+        res2 = 0
+        num = 100
+        for i in range(num):
+            pre = self.model(x, t)
+            res += pre.detach().cpu().item()
+            res2 += (pre.detach().cpu().item()) ** 2
+        return res / num, res2 / num - (res / num) ** 2
+    def predict(self, x, t):
+        batch_size = 512
+        n = x.shape[0]
+        y = np.zeros([n, 1])
+        u = np.zeros([n, 1])
+        for i in range(0, n, batch_size):
+            op, ed = i, min(i + batch_size, n)
+            x_batch = torch.FloatTensor(x[op:ed]).to(self.device)
+            t_batch = torch.FloatTensor(t[op:ed]).to(self.device)
+            pre_list = np.zeros((ed - op, 0))
+            for j in range(100):
+                pre = self.model(x_batch, t_batch)
+                pre_list = np.concatenate([pre_list, pre.detach().cpu().numpy()], axis = 1)
+            y[op:ed] = np.mean(pre_list, axis = 1, keepdims = True)
+            u[op:ed] = 1.96 * np.std(pre_list, axis = 1, keepdims = True)
+        return y, u
+
+    def predict_eval(self, x, t):
+        batch_size = 512
+        n = x.shape[0]
+        y = np.zeros([n, 1])
+        self.model.eval()
+        for i in range(0, n, batch_size):
+            op, ed = i, min(i + batch_size, n)
+            x_batch = torch.FloatTensor(x[op:ed]).to(self.device)
+            t_batch = torch.FloatTensor(t[op:ed]).to(self.device)
+            pre = self.model(x_batch, t_batch)
+            y[op:ed] = pre.detach().cpu().numpy()
+        self.model.train()
+        return y
+
+    def search_optimal_t(self, x):
+        n = x.shape[0]
+        resolution = 1000
+        t = np.zeros([n, 1])
+        x_t = torch.FloatTensor(x).to(self.device)
+        y = np.zeros([n, 1]) - 10000.0
+        for j in range(resolution + 1):
+            t_t = (torch.ones((n, 1)) * j * 1.0 / resolution).to(self.device)
+            pre = self.model(x_t, t_t).detach().cpu().numpy()
+            idx = (pre > y)
+            t[idx] = j * 1.0 / resolution
+            y[idx] = pre[idx]
+        return t
+
+    def look_response_curve(self, turns, x, outcome_model):
+        pre_list = []
+        gd_list = []
+        ub_list = []
+        lb_list = []
+        f = open('plot.txt', 'a')
+        f.write('Turn %d\n' % (turns))
+        for i in range(200 + 1):
+            j = i / 200.0
+            tmp_t = np.array([[j]])
+            pre, un = self.predict_one(torch.FloatTensor(x).to(self.device),
+                                       torch.FloatTensor(tmp_t).to(self.device))
+            f.write('%.4f %.4f %.4f %.4f\n' % (pre,
+                (outcome_model.GetOutcome(x, tmp_t))[0, 0],
+                pre + un * 1.96, pre - un * 1.96))
+        f.close()
+
+    def norm_constant(self, x, mu, tao, resolution = 50):
+        ret = None
+        for i in range(resolution + 1):
+            t = np.ones([x.shape[0], 1]) * 1.0 * i / resolution
+            y_pre, u_pre = self.predict(x, t)
+            if (i == 0):
+                ret = np.exp((y_pre + mu * u_pre) / tao)
+            else:
+                ret += np.exp((y_pre + mu * u_pre) / tao)
+        ret /= (resolution + 1)
+        return ret
+
+    def train_adaptively(self, x, t, y, outcome_model, ww = None):
+        iters = 1
+        n = x.shape[0]
+        if (ww is None):
+            w = np.ones([n, 1])
+        else:
+            w = ww.copy()
+        mu = 1.96
+        tao = 0.6
+        for i in range(iters):
+            print(np.square(w.sum()) / (w * w).sum())
+            self.train(x, t, y, w)
+            y_pre, u_pre = self.predict(x, t)
+            w_new = np.exp((y_pre + u_pre * mu) / tao)
+            fm = self.norm_constant(x, mu, tao, 50)
+            w_new /= fm
+            w_new /= w_new.mean()
+            w = w_new
+            mu *= 0.8
+            for j in range(100, 110):
+                self.look_response_curve(i, x[j:j + 1], outcome_model)
+
+class Bootstrap:
+    def __init__(self, context_dim, model_num):
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model_list = []
+        self.idx_list = []
+        for i in range(model_num):
+            self.model_list.append(RegressModel(context_dim, 10, 3))
+            self.model_list[i].to(self.device)
+        self.model_num = model_num
+    def train(self, x, t, y, w):
+        n = x.shape[0]
+        batch_size = min(n, 128)
+        for i in range(self.model_num):
+            print('Model %d' % (i))
+            epochs = 2000
+            optimizer = optim.SGD(self.model_list[i].parameters(), lr=0.1, weight_decay = 1e-5)
+            mse = nn.MSELoss(reduction='none')
+            scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = epochs, eta_min=1e-3)
+            if (len(self.idx_list) < self.model_num):
+                n_sel = n
+                select_idx = np.random.choice(n, n_sel, replace = False)
+                self.idx_list.append(select_idx)
+            else:
+                select_idx = self.idx_list[i]
+                n_sel = np.shape(select_idx)[0]
+
+            x_sel = x[select_idx]
+            t_sel = t[select_idx]
+            y_sel = y[select_idx]
+            w_sel = w[select_idx].copy()
+            w_sel /= w_sel.mean()
+            last_loss = 1000000
+            last_ep = -1
+            current_loss = 0
+            for ep in range(epochs):
+                idx = np.random.permutation(n_sel)
+                current_loss = 0
+                for j in range(0, n_sel, batch_size):
+                    op, ed = j, min(j + batch_size, n_sel)
+                    x_batch = torch.FloatTensor(x_sel[idx[op:ed]]).to(self.device)
+                    t_batch = torch.FloatTensor(t_sel[idx[op:ed]]).to(self.device)
+                    y_batch = torch.FloatTensor(y_sel[idx[op:ed]]).to(self.device)
+                    w_batch = torch.FloatTensor(w_sel[idx[op:ed]]).to(self.device)
+                    pre = self.model_list[i](x_batch, t_batch)
+                    loss = (mse(pre, y_batch) * w_batch).mean()
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+                    current_loss += loss.item() * (ed - op)
+                if ((ep + 1) % 200 == 0):
+                    print('Epoch %d, Loss %f' % (ep + 1, current_loss / n))
+                scheduler.step()
+                if (last_loss > current_loss):
+                    last_loss = current_loss
+                    last_ep = ep
+                if (ep - last_ep > 5000):
+                    break
+
+    def norm_constant(self, x, mu, tao, resolution = 50):
+        ret = None
+        for i in range(resolution + 1):
+            t = np.ones([x.shape[0], 1]) * 1.0 * i / resolution
+            y_pre, u_pre = self.predict(x, t)
+            if (i == 0):
+                ret = np.exp((y_pre + mu * u_pre) / tao)
+            else:
+                ret += np.exp((y_pre + mu * u_pre) / tao)
+        ret /= (resolution + 1)
+        return ret
+
+    def train_adaptively(self, x, t, y, outcome_model):
+        iters = 1
+        n = x.shape[0]
+        w = np.ones([n, 1])
+        mu = 1.96
+        tao = 0.6
+        for i in range(iters):
+            print(np.square(w.sum()) / (w * w).sum())
+            self.train(x, t, y, w)
+            y_pre, u_pre = self.predict(x, t)
+            w_new = np.exp((y_pre + u_pre * mu) / tao)
+            fm = self.norm_constant(x, mu, tao, 50)
+            w_new /= fm
+            w_new /= w_new.mean()
+            w = w_new
+            mu *= 0.8
+            for j in range(100, 110):
+                self.look_response_curve(i, x[j:j + 1], outcome_model)
+    def predict_one(self, x, t):
+        res = 0
+        res2 = 0
+        for i in range(self.model_num):
+            pre = self.model_list[i](x, t)
+            res += pre.detach().cpu().item()
+            res2 += (pre.detach().cpu().item()) ** 2
+        return res / self.model_num, res2 / self.model_num - (res / self.model_num) ** 2
+
+    def predict_gradient(self, x, t):
+        res = None
+        for i in range(self.model_num):
+            pre = self.model_list[i](x, t)
+            res = pre if (i == 0) else (res + pre)
+        res /= self.model_num
+        return res
+
+    def look_response_curve(self, turns, x, outcome_model):
+        pre_list = []
+        gd_list = []
+        ub_list = []
+        lb_list = []
+        f = open('plot.txt', 'a')
+        f.write('Turn %d\n' % (turns))
+        for i in range(200 + 1):
+            j = i / 200.0
+            tmp_t = np.array([[j]])
+            pre, un = self.predict_one(torch.FloatTensor(x).to(self.device),
+                                       torch.FloatTensor(tmp_t).to(self.device))
+            f.write('%.4f %.4f %.4f %.4f\n' % (pre, 
+                (outcome_model.GetOutcome(x, tmp_t))[0, 0], 
+                pre + un * 1.96, pre - un * 1.96))
+        f.close()
+    def predict(self, x, t):
+        batch_size = 512
+        n = x.shape[0]
+        y = np.zeros([n, 1])
+        u = np.zeros([n, 1])
+        for i in range(0, n, batch_size):
+            op, ed = i, min(i + batch_size, n)
+            x_batch = torch.FloatTensor(x[op:ed]).to(self.device)
+            t_batch = torch.FloatTensor(t[op:ed]).to(self.device)
+            pre_list = np.zeros((ed - op, 0))
+
+            for j in range(self.model_num):
+                pre = self.model_list[j](x_batch, t_batch)
+                pre_list = np.concatenate([pre_list, pre.detach().cpu().numpy()], axis = 1)
+            y[op:ed] = np.mean(pre_list, axis = 1, keepdims = True)
+            u[op:ed] = np.std(pre_list, axis = 1, keepdims = True)
+        return y, u
+
+    def search_optimal_t(self, x):
+        n = x.shape[0]
+        resolution = 1000
+        t = np.zeros([n, 1])
+        x_t = torch.FloatTensor(x).to(self.device)
+        y = np.zeros([n, 1]) - 10000.0
+        for j in range(resolution + 1):
+            t_t = (torch.ones((n, 1)) * j * 1.0 / resolution).to(self.device)
+            pre = self.predict_gradient(x_t, t_t).detach().cpu().numpy()
+            idx = (pre > y)
+            t[idx] = j * 1.0 / resolution
+            y[idx] = pre[idx]
+        return t
