@@ -1,6 +1,6 @@
 import numpy as np
-from dataset import SCIGAN_Outcome, Dataset, Parameters, Uniform_Policy
-from model import Bootstrap, PolicyNet, PolicyEvaluation, VanillaModel, MCDropoutRegressor
+from dataset import Exp_Outcome, Dataset, Parameters, Linear_Outcome
+from model import Bootstrap, PolicyNet, PolicyEvaluation, VanillaModel, MCDropoutRegressor, QuantileRegressor
 import matplotlib.pyplot as plt
 import torch
 from util import decor_weight
@@ -11,16 +11,17 @@ def RMSE(pre, target):
     mse = np.mean(np.square(pre - target))
     return np.sqrt(mse)
 
-n = 1000
+n = 2000
 p = 5
 ifnew_param = False
-name_param = 'MT'
+name_param = 'DD'
 params = Parameters(p, ifnew_param, name_param)
 ifnew_data = True
-name_data = 'MT'
+name_data = 'DD'
 data = Dataset(n, p, params, ifnew_data, name_data)
 x, t, y, ps = data.GetData()
-outcome_model = SCIGAN_Outcome(params)
+outcome_model = Linear_Outcome(params)
+print(t.mean(), t.std())
 print(y.mean(), y.std())
 print('Inverse Propensity Score Weight STD and Mean', np.std(1 / ps), np.mean(1 / ps))
 
@@ -31,24 +32,23 @@ def manual_seed(seed):
 
 optim_t, optim_y = outcome_model.BestTreatmentOutcome(x)
 print('Optimal Policy Value:', optim_y.mean())
+print((optim_t < t).sum())
 
 res_tr_list = []
 res_te_list = []
 value_list = []
-beta_prob = stats.beta(4, 2)
-for i in range(1, 2):
+for i in range(0, 1):
     manual_seed(i)
-    w = decor_weight(x, t)
+    w = np.ones([n, 1])#decor_weight(x, t)
     w /= w.mean()
-    print(np.argmax(w), np.max(w))
-    print(w[t > 0.5].mean())
-    print('Density Ratio Estimation Weight STD and Mean', np.std(w), np.mean(w))
     reg = MCDropoutRegressor(p)
     reg.train_adaptively(x, t, y, outcome_model, w)
 
     y_pre, _ = reg.predict(x, t)
+    print(RMSE(y_pre, y))
     print(RMSE(y_pre, outcome_model.GetOutcome(x, t)))
     res_tr_list.append(RMSE(y_pre, outcome_model.GetOutcome(x, t)))
+    
     x_test = x.copy()
     t_test = np.random.rand(n, 1)
     y_test = outcome_model.GetOutcome(x_test, t_test)
@@ -67,6 +67,7 @@ for i in range(1, 2):
 
 print('Train:', sum(res_tr_list) / len(res_tr_list))
 print('Test:', sum(res_te_list) / len(res_te_list))
+print(value_list)
 print('Value:', sum(value_list) / len(value_list))
 exit(0)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

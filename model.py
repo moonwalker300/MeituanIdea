@@ -198,7 +198,7 @@ class MCDropoutModel(nn.Module):
             _fc_list = []
             self.output_layer = nn.Linear(self.input_dim + 1, 1)
         self.fc = nn.ModuleList(_fc_list)
-        self.dropout = nn.Dropout(p = 1 - keep_prob)
+        #self.dropout = nn.Dropout(p = 1 - keep_prob)
     def weight_norm(self):
         w = 0
         for name, pa in self.named_parameters():
@@ -365,16 +365,150 @@ class MCDropoutRegressor:
             w_new /= w_new.mean()
             w = w_new
             mu *= 0.8
-            for j in range(100, 110):
+            for j in range(122, 130):
                 self.look_response_curve(i, x[j:j + 1], outcome_model)
 
+class QuantileRegressor:
+    def __init__(self, context_dim):
+        self.model_ub = MCDropoutModel(context_dim, 20, 3)
+        self.model = MCDropoutModel(context_dim, 20, 3)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model_ub.to(self.device)
+        self.model.to(self.device)
+    def weighted_quantile_loss(self, pre, y, w, tau):
+        loss = torch.max(tau * (y - pre), (tau - 1) * (y - pre))
+        return (loss * w).mean()
+    def train(self, x, t, y, w, tau):
+        n = x.shape[0]
+        batch_size = min(n, 128)
+        epochs = 2000
+        params = list(self.model.parameters()) + list(self.model_ub.parameters())
+        mse = nn.MSELoss(reduction = 'none')
+        optimizer = optim.SGD(params, lr = 0.1, weight_decay = 1e-5)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = epochs, eta_min=1e-3)
+        weight = (w.copy())
+        weight /= weight.mean()
+        last_loss = 1000000
+        current_loss = 0
+        last_ep = -1
+        for ep in range(epochs):
+            current_loss = 0
+            idx = np.random.permutation(n)
+            for i in range(0, n, batch_size):
+                op, ed = i, min(i + batch_size, n)
+                x_batch = torch.FloatTensor(x[idx[op:ed]]).to(self.device)
+                t_batch = torch.FloatTensor(t[idx[op:ed]]).to(self.device)
+                y_batch = torch.FloatTensor(y[idx[op:ed]]).to(self.device)
+                w_batch = torch.FloatTensor(weight[idx[op:ed]]).to(self.device)
+                pre_ub = self.model_ub(x_batch, t_batch)
+                pre = self.model(x_batch, t_batch)
+                loss = self.weighted_quantile_loss(pre, y_batch, w_batch, 1 - tau) + \
+                        self.weighted_quantile_loss(pre_ub, y_batch, w_batch, tau)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                current_loss += loss.item() * (ed - op)
+            if ((ep + 1) % 200 == 0):
+                print('Epoch %d, Loss %f' % (ep + 1, current_loss / n))
+            scheduler.step()
+            if (last_loss > current_loss):
+                last_loss = current_loss
+                last_ep = ep
+            if (ep - last_ep > 5000):
+                break
+    def predict_one(self, x, t):
+        pre = self.model(x, t)
+        pre_ub = self.model_ub(x, t)
+        return (pre.item() + pre_ub.item()) / 2, (pre_ub.item() - pre.item()) / 2
+
+    def predict(self, x, t):
+        batch_size = 512
+        n = x.shape[0]
+        y = np.zeros([n, 1])
+        u = np.zeros([n, 1])
+        for i in range(0, n, batch_size):
+            op, ed = i, min(i + batch_size, n)
+            x_batch = torch.FloatTensor(x[op:ed]).to(self.device)
+            t_batch = torch.FloatTensor(t[op:ed]).to(self.device)
+            pre = self.model(x_batch, t_batch).detach().cpu().numpy()
+            pre_ub = self.model_ub(x_batch, t_batch).detach().cpu().numpy()
+            y[op:ed] = (pre_ub + pre) / 2
+            u[op:ed] = (pre_ub - pre) / 2
+        return y, u
+
+
+    def search_optimal_t(self, x):
+        n = x.shape[0]
+        resolution = 1000
+        t = np.zeros([n, 1])
+        x_t = torch.FloatTensor(x).to(self.device)
+        y = np.zeros([n, 1]) - 10000.0
+        for j in range(resolution + 1):
+            t_t = (torch.ones((n, 1)) * j * 1.0 / resolution).to(self.device)
+            pre = (self.model(x_t, t_t) + self.model_ub(x_t, t_t)).detach().cpu().numpy()
+            idx = (pre > y)
+            t[idx] = j * 1.0 / resolution
+            y[idx] = pre[idx]
+        return t
+
+    def look_response_curve(self, turns, x, outcome_model):
+        pre_list = []
+        gd_list = []
+        ub_list = []
+        lb_list = []
+        f = open('plot.txt', 'a')
+        f.write('Turn %d\n' % (turns))
+        for i in range(200 + 1):
+            j = i / 200.0
+            tmp_t = np.array([[j]])
+            pre, un = self.predict_one(torch.FloatTensor(x).to(self.device),
+                                       torch.FloatTensor(tmp_t).to(self.device))
+            f.write('%.4f %.4f %.4f %.4f\n' % (pre,
+                (outcome_model.GetOutcome(x, tmp_t))[0, 0],
+                pre + un, pre - un))
+        f.close()
+
+    def norm_constant(self, x, tao, resolution = 50):
+        ret = None
+        for i in range(resolution + 1):
+            t = np.ones([x.shape[0], 1]) * 1.0 * i / resolution
+            y_pre, u_pre = self.predict(x, t)
+            if (i == 0):
+                ret = np.exp((y_pre + u_pre) / tao)
+            else:
+                ret += np.exp((y_pre + u_pre) / tao)
+        ret /= (resolution + 1)
+        return ret
+
+    def train_adaptively(self, x, t, y, outcome_model, ww):
+        iters = 1
+        n = x.shape[0]
+        tau = 0.1
+        tao = 0.6
+        intv = (tau - 0.5) / iters
+        w_at = np.ones([n, 1])
+        for i in range(iters):
+            w_now = w_at * ww
+            w_now /= w_now.mean()
+            print(np.square(w_now.sum()) / (w_now * w_now).sum())
+            self.train(x, t, y, w_now, tau)
+            y_pre, u_pre = self.predict(x, t)
+            w_new = np.exp((y_pre + u_pre) / tao)
+            fm = self.norm_constant(x, tao, 50)
+            w_new /= fm
+            w_new /= w_new.mean()
+            w_at = w_new
+            tau -= intv
+            for j in range(100, 110):
+                self.look_response_curve(i, x[j:j + 1], outcome_model)
+                
 class Bootstrap:
     def __init__(self, context_dim, model_num):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model_list = []
         self.idx_list = []
         for i in range(model_num):
-            self.model_list.append(RegressModel(context_dim, 10, 3))
+            self.model_list.append(RegressModel(context_dim, 20, 3))
             self.model_list[i].to(self.device)
         self.model_num = model_num
     def train(self, x, t, y, w):
@@ -383,12 +517,13 @@ class Bootstrap:
         for i in range(self.model_num):
             print('Model %d' % (i))
             epochs = 2000
-            optimizer = optim.SGD(self.model_list[i].parameters(), lr=0.1, weight_decay = 1e-5)
+            self.model_list[i].apply(weights_init)
+            optimizer = optim.Adam(self.model_list[i].parameters(), lr=0.01)
             mse = nn.MSELoss(reduction='none')
-            scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = epochs, eta_min=1e-3)
+            #scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = epochs, eta_min=1e-3)
             if (len(self.idx_list) < self.model_num):
                 n_sel = n
-                select_idx = np.random.choice(n, n_sel, replace = False)
+                select_idx = np.random.choice(n, n_sel, replace = True)
                 self.idx_list.append(select_idx)
             else:
                 select_idx = self.idx_list[i]
@@ -419,7 +554,7 @@ class Bootstrap:
                     current_loss += loss.item() * (ed - op)
                 if ((ep + 1) % 200 == 0):
                     print('Epoch %d, Loss %f' % (ep + 1, current_loss / n))
-                scheduler.step()
+                #scheduler.step()
                 if (last_loss > current_loss):
                     last_loss = current_loss
                     last_ep = ep
@@ -438,10 +573,10 @@ class Bootstrap:
         ret /= (resolution + 1)
         return ret
 
-    def train_adaptively(self, x, t, y, outcome_model):
+    def train_adaptively(self, x, t, y, outcome_model, ww):
         iters = 1
         n = x.shape[0]
-        w = np.ones([n, 1])
+        w = ww.copy()
         mu = 1.96
         tao = 0.6
         for i in range(iters):
@@ -454,7 +589,7 @@ class Bootstrap:
             w_new /= w_new.mean()
             w = w_new
             mu *= 0.8
-            for j in range(100, 110):
+            for j in range(10, 15):
                 self.look_response_curve(i, x[j:j + 1], outcome_model)
     def predict_one(self, x, t):
         res = 0
@@ -487,7 +622,7 @@ class Bootstrap:
                                        torch.FloatTensor(tmp_t).to(self.device))
             f.write('%.4f %.4f %.4f %.4f\n' % (pre, 
                 (outcome_model.GetOutcome(x, tmp_t))[0, 0], 
-                pre + un * 1.96, pre - un * 1.96))
+                pre + un * 10, pre - un * 10))
         f.close()
     def predict(self, x, t):
         batch_size = 512
