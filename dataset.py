@@ -79,9 +79,10 @@ class SCIGAN_Outcome:
         c = x.dot(v3)
 
 class Linear_Policy:
-    def __init__(self, alpha, param):
+    def __init__(self, alpha, param, rs):
         self.alpha = alpha
         self.param = param
+        self.rs = rs
     def compute_beta(self, d):
         beta = (self.alpha - 1) / d + 2 - self.alpha
         return beta
@@ -91,11 +92,11 @@ class Linear_Policy:
         v1 = self.param.GetV(1)
         v2 = self.param.GetV(2)
         a = x.dot(v1) * 2
-        b = np.min(-x.dot(v2) * 2 + 1, -0.01)
+        b = -x.dot(v2)
         d_star = (a / (-2 * b)) / 2
-        beta = self.compute_beta(d_star)
+        beta = self.compute_beta(d_star / self.rs)
         for i in range(n):
-            t[i][0] = np.random.beta(self.alpha, beta[i][0])
+            t[i][0] = np.random.beta(self.alpha, beta[i][0]) * self.rs
         return t
     def GetProb(self, x, t):
         n = x.shape[0]
@@ -103,12 +104,12 @@ class Linear_Policy:
         v1 = self.param.GetV(1)
         v2 = self.param.GetV(2)
         a = x.dot(v1) * 2
-        b = np.min(-x.dot(v2) * 2 + 1, -0.01)
+        b = -x.dot(v2)
         d_star = (a / (-2 * b)) / 2
         for i in range(n):
-            beta = self.compute_beta(d_star[i][0])
+            beta = self.compute_beta(d_star[i][0] / self.rs)
             beta_prob = stats.beta(self.alpha, beta)
-            pb[i][0] = beta_prob.pdf(t[i][0])
+            pb[i][0] = beta_prob.pdf(t[i][0] / self.rs)
         return pb
 
 class Linear_Outcome:
@@ -118,7 +119,7 @@ class Linear_Outcome:
         v1 = self.param.GetV(1)
         v2 = self.param.GetV(2)
         a = x.dot(v1) * 2
-        b = np.min(-x.dot(v2) * 2 + 1, -0.01)
+        b = -x.dot(v2)
         d_star = a / (-2 * b)
         y = self.GetOutcome(x, d_star)
         return d_star, y
@@ -126,8 +127,8 @@ class Linear_Outcome:
         v1 = self.param.GetV(1)
         v2 = self.param.GetV(2)
         a = x.dot(v1) * 2
-        b = np.min(-x.dot(v2) * 2 + 1, -0.01)
-        return a * t + b * t * t
+        b = -x.dot(v2)
+        return np.clip(a * t + b * t * t, 0, np.inf)
 
 
 class Exp_Policy:
@@ -238,12 +239,12 @@ class MT_Outcome:
         return y
 
 class Dataset:
-    def __init__(self, n, p, param, ifnew, name):
+    def __init__(self, n, p, param, ifnew, name, rs):
         if (ifnew):
             np.random.seed(0)
-            x = np.random.uniform(0, 1, size=[n, p]) 
-            alpha = 3.0
-            behavior_policy = Linear_Policy(alpha, param)
+            x = np.abs(np.random.normal(0, 1, size=[n, p]))
+            alpha = 4.0
+            behavior_policy = Linear_Policy(alpha, param, rs)
             outcome_model = Linear_Outcome(param)
             t = behavior_policy.GetTreatment(x)
             print(((t > 0.2) & (t < 0.3)).sum(), (t < 0.1).sum())

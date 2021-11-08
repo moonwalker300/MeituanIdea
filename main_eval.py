@@ -13,12 +13,13 @@ def RMSE(pre, target):
 
 n = 2000
 p = 5
+rs = 2.0
 ifnew_param = False
 name_param = 'DD'
 params = Parameters(p, ifnew_param, name_param)
 ifnew_data = True
 name_data = 'DD'
-data = Dataset(n, p, params, ifnew_data, name_data)
+data = Dataset(n, p, params, ifnew_data, name_data, rs)
 x, t, y, ps = data.GetData()
 outcome_model = Linear_Outcome(params)
 print(t.mean(), t.std())
@@ -39,9 +40,9 @@ res_te_list = []
 value_list = []
 for i in range(0, 1):
     manual_seed(i)
-    w = np.ones([n, 1])#decor_weight(x, t)
+    w = decor_weight(x, t, rs)
     w /= w.mean()
-    reg = MCDropoutRegressor(p)
+    reg = MCDropoutRegressor(p, rs)
     reg.train_adaptively(x, t, y, outcome_model, w)
 
     y_pre, _ = reg.predict(x, t)
@@ -50,7 +51,7 @@ for i in range(0, 1):
     res_tr_list.append(RMSE(y_pre, outcome_model.GetOutcome(x, t)))
     
     x_test = x.copy()
-    t_test = np.random.rand(n, 1)
+    t_test = np.random.rand(n, 1) * rs
     y_test = outcome_model.GetOutcome(x_test, t_test)
     y_pre, _ = reg.predict(x_test, t_test)
     print(RMSE(y_pre, y_test))

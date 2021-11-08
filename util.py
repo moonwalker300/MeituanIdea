@@ -35,7 +35,7 @@ def quantile_loss(preds, labels, tau):
     loss_ = torch.max((tau - 1) * error, tau * error)
     return loss_.mean()
 
-def decor_weight(x, t):
+def decor_weight(x, t, rs):
     hidden_dim = 10
     n_layers = 3
     cl = Classifier(x.shape[1] + 1, 1, hidden_dim, n_layers)
@@ -51,7 +51,7 @@ def decor_weight(x, t):
             op, ed = i, min(i + half_batch_size, n)
             x_batch = torch.FloatTensor(x[idx[op:ed]])
             t_batch = torch.FloatTensor(t[idx[op:ed]])
-            t_rand = torch.rand(size = t_batch.size())
+            t_rand = torch.rand(size = t_batch.size()) * rs
             xx = torch.cat((x_batch, x_batch), dim = 0)
             tt = torch.cat((t_batch, t_rand), dim = 0)
             y = torch.cat((torch.zeros((ed - op, 1)), torch.ones((ed - op, 1))), dim = 0)

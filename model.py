@@ -221,10 +221,11 @@ class MCDropoutModel(nn.Module):
 
 
 class MCDropoutRegressor:
-    def __init__(self, context_dim, uncertainty = False):
+    def __init__(self, context_dim, rs):
         self.kp = 1.0
         self.lamb = 0.0000
-        self.model = MCDropoutModel(context_dim, 20, 3, self.kp)
+        self.rs = rs * 1.0
+        self.model = MCDropoutModel(context_dim, 10, 3, self.kp)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model.to(self.device)
     def train(self, x, t, y, w):
@@ -310,10 +311,10 @@ class MCDropoutRegressor:
         x_t = torch.FloatTensor(x).to(self.device)
         y = np.zeros([n, 1]) - 10000.0
         for j in range(resolution + 1):
-            t_t = (torch.ones((n, 1)) * j * 1.0 / resolution).to(self.device)
+            t_t = (torch.ones((n, 1)) * j * self.rs / resolution).to(self.device)
             pre = self.model(x_t, t_t).detach().cpu().numpy()
             idx = (pre > y)
-            t[idx] = j * 1.0 / resolution
+            t[idx] = j * self.rs / resolution
             y[idx] = pre[idx]
         return t
 
@@ -325,7 +326,7 @@ class MCDropoutRegressor:
         f = open('plot.txt', 'a')
         f.write('Turn %d\n' % (turns))
         for i in range(200 + 1):
-            j = i / 200.0
+            j = (i / 200.0) * self.rs
             tmp_t = np.array([[j]])
             pre, un = self.predict_one(torch.FloatTensor(x).to(self.device),
                                        torch.FloatTensor(tmp_t).to(self.device))
@@ -337,7 +338,7 @@ class MCDropoutRegressor:
     def norm_constant(self, x, mu, tao, resolution = 50):
         ret = None
         for i in range(resolution + 1):
-            t = np.ones([x.shape[0], 1]) * 1.0 * i / resolution
+            t = np.ones([x.shape[0], 1]) * self.rs * i / resolution
             y_pre, u_pre = self.predict(x, t)
             if (i == 0):
                 ret = np.exp((y_pre + mu * u_pre) / tao)
@@ -365,7 +366,7 @@ class MCDropoutRegressor:
             w_new /= w_new.mean()
             w = w_new
             mu *= 0.8
-            for j in range(122, 130):
+            for j in range(120, 130):
                 self.look_response_curve(i, x[j:j + 1], outcome_model)
 
 class QuantileRegressor:
