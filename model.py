@@ -225,7 +225,7 @@ class MCDropoutRegressor:
         self.kp = 1.0
         self.lamb = 0.0000
         self.rs = rs * 1.0
-        self.model = MCDropoutModel(context_dim, 10, 3, self.kp)
+        self.model = MCDropoutModel(context_dim, 20, 3, self.kp)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model.to(self.device)
     def train(self, x, t, y, w):
@@ -366,6 +366,8 @@ class MCDropoutRegressor:
             w_new /= w_new.mean()
             w = w_new
             mu *= 0.8
+            f = open('plot.txt', 'w')
+            f.close()
             for j in range(120, 130):
                 self.look_response_curve(i, x[j:j + 1], outcome_model)
 

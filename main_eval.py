@@ -13,7 +13,7 @@ def RMSE(pre, target):
 
 n = 2000
 p = 5
-rs = 2.0
+rs = 3.0#for exp (2.0 for linear)
 ifnew_param = False
 name_param = 'DD'
 params = Parameters(p, ifnew_param, name_param)
@@ -21,7 +21,7 @@ ifnew_data = True
 name_data = 'DD'
 data = Dataset(n, p, params, ifnew_data, name_data, rs)
 x, t, y, ps = data.GetData()
-outcome_model = Linear_Outcome(params)
+outcome_model = Exp_Outcome(params)
 print(t.mean(), t.std())
 print(y.mean(), y.std())
 print('Inverse Propensity Score Weight STD and Mean', np.std(1 / ps), np.mean(1 / ps))
@@ -33,12 +33,11 @@ def manual_seed(seed):
 
 optim_t, optim_y = outcome_model.BestTreatmentOutcome(x)
 print('Optimal Policy Value:', optim_y.mean())
-print((optim_t < t).sum())
 
 res_tr_list = []
 res_te_list = []
 value_list = []
-for i in range(0, 1):
+for i in range(0, 2):
     manual_seed(i)
     w = decor_weight(x, t, rs)
     w /= w.mean()
@@ -46,7 +45,6 @@ for i in range(0, 1):
     reg.train_adaptively(x, t, y, outcome_model, w)
 
     y_pre, _ = reg.predict(x, t)
-    print(RMSE(y_pre, y))
     print(RMSE(y_pre, outcome_model.GetOutcome(x, t)))
     res_tr_list.append(RMSE(y_pre, outcome_model.GetOutcome(x, t)))
     
