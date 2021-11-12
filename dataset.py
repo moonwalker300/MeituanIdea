@@ -244,11 +244,11 @@ class Dataset:
         if (ifnew):
             np.random.seed(0)
             x = np.abs(np.random.normal(0, 1, size=[n, p]))
-            alpha = 3.5
+            alpha = 3.0
             behavior_policy = Exp_Policy(alpha, param, rs)
             outcome_model = Exp_Outcome(param)
             t = behavior_policy.GetTreatment(x)
-            print(((t > 0.2) & (t < 0.3)).sum(), (t < 0.1).sum())
+            print((t > 2.0).sum())
             y = outcome_model.GetOutcome(x, t)
             y += np.random.normal(0, 0.2, size = y.shape)
             ps = behavior_policy.GetProb(x, t)

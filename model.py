@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 def weights_init(m):
     if isinstance(m, nn.Linear):
         m.reset_parameters()
-        nn.init.constant_(m.bias.data, 0)
 
 class KernelEncoder(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim, n_layers):
@@ -229,10 +228,11 @@ class MCDropoutRegressor:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model.to(self.device)
     def train(self, x, t, y, w):
+        self.model.apply(weights_init)
         n = x.shape[0]
         batch_size = min(n, 128)
         epochs = 2000
-        optimizer = optim.SGD(self.model.parameters(), lr = 0.1, weight_decay = 1e-5)
+        optimizer = optim.SGD(self.model.parameters(), lr = 0.05, weight_decay = 1e-5)
         mse = nn.MSELoss(reduction='none')
         scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = epochs, eta_min=1e-3)
         weight = (w.copy())
@@ -250,8 +250,8 @@ class MCDropoutRegressor:
                 y_batch = torch.FloatTensor(y[idx[op:ed]]).to(self.device)
                 w_batch = torch.FloatTensor(weight[idx[op:ed]]).to(self.device)
                 pre = self.model(x_batch, t_batch)
-                loss = (mse(pre, y_batch) * w_batch).mean() #+ 
-                    #(self.model.weight_norm() * self.kp + self.model.bias_norm()) * self.lamb
+                loss = (mse(pre, y_batch) * w_batch).mean()
+
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -283,7 +283,7 @@ class MCDropoutRegressor:
             x_batch = torch.FloatTensor(x[op:ed]).to(self.device)
             t_batch = torch.FloatTensor(t[op:ed]).to(self.device)
             pre_list = np.zeros((ed - op, 0))
-            for j in range(100):
+            for j in range(1):
                 pre = self.model(x_batch, t_batch)
                 pre_list = np.concatenate([pre_list, pre.detach().cpu().numpy()], axis = 1)
             y[op:ed] = np.mean(pre_list, axis = 1, keepdims = True)
@@ -339,11 +339,11 @@ class MCDropoutRegressor:
         ret = None
         for i in range(resolution + 1):
             t = np.ones([x.shape[0], 1]) * self.rs * i / resolution
-            y_pre, u_pre = self.predict(x, t)
+            y_pre = self.predict_eval(x, t)
             if (i == 0):
-                ret = np.exp((y_pre + mu * u_pre) / tao)
+                ret = np.exp(y_pre / tao)
             else:
-                ret += np.exp((y_pre + mu * u_pre) / tao)
+                ret += np.exp(y_pre / tao)
         ret /= (resolution + 1)
         return ret
 
@@ -351,25 +351,37 @@ class MCDropoutRegressor:
         iters = 1
         n = x.shape[0]
         if (ww is None):
-            w = np.ones([n, 1])
+            w_dbs = np.ones([n, 1])
         else:
-            w = ww.copy()
-        mu = 1.96
-        tao = 0.6
+            w_dbs = ww.copy()
+        tao = 2.0
+        w_att = np.ones([n, 1])
+        ll = np.array([183, 870, 311, 303, 453, 825, 333, 1648, 63, 1449])
         for i in range(iters):
+            w = w_att * w_dbs
+            w /= w.mean()
             print(np.square(w.sum()) / (w * w).sum())
+            print(w.max())
             self.train(x, t, y, w)
-            y_pre, u_pre = self.predict(x, t)
-            w_new = np.exp((y_pre + u_pre * mu) / tao)
-            fm = self.norm_constant(x, mu, tao, 50)
+            y_pre = self.predict_eval(x, t)
+            w_new = np.exp(y_pre / tao)
+            fm = self.norm_constant(x, tao, 50)
             w_new /= fm
             w_new /= w_new.mean()
-            w = w_new
-            mu *= 0.8
-            f = open('plot.txt', 'w')
-            f.close()
-            for j in range(120, 130):
+            w_att = w_new
+            if (i < iters - 1):
+                continue
+            for j in range(20):
                 self.look_response_curve(i, x[j:j + 1], outcome_model)
+        w_att = w_att.squeeze()
+        idx = w_att.argsort()
+        print('Weight Look')
+        print(w_att[ll].squeeze())
+        print(t[ll].squeeze())
+        print(w_dbs[ll].squeeze())
+        print(y_pre[ll].squeeze())
+        print(y[ll].squeeze())
+
 
 class QuantileRegressor:
     def __init__(self, context_dim):
