@@ -11,17 +11,17 @@ def RMSE(pre, target):
     mse = np.mean(np.square(pre - target))
     return np.sqrt(mse)
 
-n = 3000
-p = 5
-rs = 3.0#for exp (2.0 for linear)
+n = 2000
+p = 3
+rs = 3.0#for exp (3.0 for Exp)
 ifnew_param = False
-name_param = 'DD'
+name_param = 'DD2'
 params = Parameters(p, ifnew_param, name_param)
 ifnew_data = True
-name_data = 'DD'
+name_data = 'DD2'
 data = Dataset(n, p, params, ifnew_data, name_data, rs)
 x, t, y, ps = data.GetData()
-outcome_model = Exp_Outcome(params)
+outcome_model = Exp_Outcome(params, rs)
 print(t.mean(), t.std())
 print(y.mean(), y.std())
 print('Inverse Propensity Score Weight STD and Mean', np.std(1 / ps), np.mean(1 / ps))
@@ -38,7 +38,7 @@ print('Optimal Policy Value:', optim_y.mean())
 res_tr_list = []
 res_te_list = []
 value_list = []
-for i in range(0, 1):
+for i in range(0, 5):
     manual_seed(i)
     w = decor_weight(x, t, rs)
     w /= w.mean()
@@ -64,7 +64,10 @@ for i in range(0, 1):
         dm_t2[op:ed] = reg.search_optimal_t(x[op:ed])
     dm_y2 = outcome_model.GetOutcome(x, dm_t2)
     print('DM Search Optimized Policy Value:', dm_y2.mean())
-    print((optim_y[dm_t2 > 2.999] - dm_y2[dm_t2 > 2.999]).sum() / n)
+    gap = (optim_y - dm_y2).squeeze()
+    idx = gap.argsort()
+    print(idx[-20:])
+    print(np.concatenate([optim_y[idx[-20:]], dm_y2[idx[-20:]]], axis = 1))
     value_list.append(dm_y2.mean())
 
 print('Train:', sum(res_tr_list) / len(res_tr_list))

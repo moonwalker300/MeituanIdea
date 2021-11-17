@@ -93,7 +93,7 @@ class Linear_Policy:
         v2 = self.param.GetV(2)
         a = x.dot(v1) * 1.8
         b = -x.dot(v2)
-        d_star = (a / (-2 * b)) / 2
+        d_star = np.clip((a / (-2 * b)) / 2, 0, self.rs)
         beta = self.compute_beta(d_star / self.rs)
         for i in range(n):
             t[i][0] = np.random.beta(self.alpha, beta[i][0]) * self.rs
@@ -105,7 +105,7 @@ class Linear_Policy:
         v2 = self.param.GetV(2)
         a = x.dot(v1) * 1.8
         b = -x.dot(v2)
-        d_star = (a / (-2 * b)) / 2
+        d_star = np.clip((a / (-2 * b)) / 2, 0, self.rs)
         for i in range(n):
             beta = self.compute_beta(d_star[i][0] / self.rs)
             beta_prob = stats.beta(self.alpha, beta)
@@ -113,14 +113,15 @@ class Linear_Policy:
         return pb
 
 class Linear_Outcome:
-    def __init__(self, param):
+    def __init__(self, param, rs):
         self.param = param
+        self.rs = rs
     def BestTreatmentOutcome(self, x):
         v1 = self.param.GetV(1)
         v2 = self.param.GetV(2)
         a = x.dot(v1) * 1.8
         b = -x.dot(v2)
-        d_star = a / (-2 * b)
+        d_star = np.clip(a / (-2 * b), 0, self.rs)
         y = self.GetOutcome(x, d_star)
         return d_star, y
     def GetOutcome(self, x, t):
@@ -146,7 +147,7 @@ class Exp_Policy:
         v2 = self.param.GetV(2)
         a = x.dot(v1)
         b = x.dot(v2)
-        d_star = (1 / b) / 2
+        d_star = np.clip((1 / b) / 2, 0, self.rs)
         beta = self.compute_beta(d_star / self.rs)
         for i in range(n):
             t[i][0] = np.random.beta(self.alpha, beta[i][0]) * self.rs
@@ -158,7 +159,7 @@ class Exp_Policy:
         v2 = self.param.GetV(2)
         a = x.dot(v1)
         b = x.dot(v2)
-        d_star = (1 / b) / 2
+        d_star = np.clip((1 / b) / 2, 0, self.rs)
         for i in range(n):
             beta = self.compute_beta(d_star[i][0] / self.rs)
             beta_prob = stats.beta(self.alpha, beta)
@@ -166,14 +167,17 @@ class Exp_Policy:
         return pb
 
 class Exp_Outcome:
-    def __init__(self, param):
+    def __init__(self, param, rs):
         self.param = param
+        self.rs = rs
     def BestTreatmentOutcome(self, x):
         v1 = self.param.GetV(1)
         v2 = self.param.GetV(2)
         a = x.dot(v1)
         b = x.dot(v2)
-        d_star = 1 / b
+        print((1 / b).min(), (1 / b).max())
+        print((1 / b).mean(), (1 / b).std())
+        d_star = np.clip(1 / b, 0, self.rs)
         y = self.GetOutcome(x, d_star)
         return d_star, y
     def GetOutcome(self, x, t):
@@ -244,9 +248,9 @@ class Dataset:
         if (ifnew):
             np.random.seed(0)
             x = np.abs(np.random.normal(0, 1, size=[n, p]))
-            alpha = 3.0
+            alpha = 4.0
             behavior_policy = Exp_Policy(alpha, param, rs)
-            outcome_model = Exp_Outcome(param)
+            outcome_model = Exp_Outcome(param, rs)
             t = behavior_policy.GetTreatment(x)
             print((t > 2.0).sum())
             y = outcome_model.GetOutcome(x, t)

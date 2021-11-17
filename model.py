@@ -224,7 +224,7 @@ class MCDropoutRegressor:
         self.kp = 1.0
         self.lamb = 0.0000
         self.rs = rs * 1.0
-        self.model = MCDropoutModel(context_dim, 20, 3, self.kp)
+        self.model = MCDropoutModel(context_dim, 100, 3, self.kp)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model.to(self.device)
     def train(self, x, t, y, w):
@@ -348,15 +348,16 @@ class MCDropoutRegressor:
         return ret
 
     def train_adaptively(self, x, t, y, outcome_model, ww = None):
-        iters = 1
+        iters = 10
         n = x.shape[0]
         if (ww is None):
             w_dbs = np.ones([n, 1])
         else:
             w_dbs = ww.copy()
-        tao = 2.0
+        tao = 4.0
         w_att = np.ones([n, 1])
-        ll = np.array([183, 870, 311, 303, 453, 825, 333, 1648, 63, 1449])
+        ll = [41, 1505, 276, 594, 435, 779, 348, 1990, 1433, 
+                181, 1230, 1787, 1678, 1153, 564, 256, 281, 88, 1149, 1831]
         for i in range(iters):
             w = w_att * w_dbs
             w /= w.mean()
@@ -372,16 +373,7 @@ class MCDropoutRegressor:
             if (i < iters - 1):
                 continue
             for j in range(20):
-                self.look_response_curve(i, x[j:j + 1], outcome_model)
-        w_att = w_att.squeeze()
-        idx = w_att.argsort()
-        print('Weight Look')
-        print(w_att[ll].squeeze())
-        print(t[ll].squeeze())
-        print(w_dbs[ll].squeeze())
-        print(y_pre[ll].squeeze())
-        print(y[ll].squeeze())
-
+                self.look_response_curve(i, x[ll[j]:ll[j] + 1], outcome_model)
 
 class QuantileRegressor:
     def __init__(self, context_dim):
