@@ -43,7 +43,7 @@ def decor_weight(x, t, rs):
     half_batch_size = 256
     n = x.shape[0]
     bceloss = nn.BCELoss(reduction='mean')
-    opt = torch.optim.Adam(cl.parameters(), lr = 0.001)
+    opt = torch.optim.Adam(cl.parameters(), lr = 0.001, weight_decay = 0)
     for ep in range(epoch):
         idx = np.random.permutation(n)
         tot_loss = 0.0

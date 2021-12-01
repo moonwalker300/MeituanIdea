@@ -248,7 +248,7 @@ class Dataset:
         if (ifnew):
             np.random.seed(0)
             x = np.abs(np.random.normal(0, 1, size=[n, p]))
-            alpha = 4.0
+            alpha = 8.0
             behavior_policy = Exp_Policy(alpha, param, rs)
             outcome_model = Exp_Outcome(param, rs)
             t = behavior_policy.GetTreatment(x)

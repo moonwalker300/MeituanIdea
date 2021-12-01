@@ -4,7 +4,6 @@ from torch.nn import functional as F
 from torch import optim
 import numpy as np
 from torch.autograd import Variable
-import matplotlib.pyplot as plt
 
 def weights_init(m):
     if isinstance(m, nn.Linear):
@@ -220,26 +219,39 @@ class MCDropoutModel(nn.Module):
 
 
 class MCDropoutRegressor:
-    def __init__(self, context_dim, rs):
+    def __init__(self, context_dim, rs, outcome_model, lam, tao):
         self.kp = 1.0
         self.lamb = 0.0000
         self.rs = rs * 1.0
-        self.model = MCDropoutModel(context_dim, 100, 3, self.kp)
+        self.model = MCDropoutModel(context_dim, 20, 3, self.kp)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model.to(self.device)
+        self.om = outcome_model
+
+        self.lam = lam
+        self.tao = tao
+        print('TTT', self.tao)
+    def gau_ker(self, t):
+        return np.exp(-t * t / 2) / np.sqrt(2 * np.pi)
     def train(self, x, t, y, w):
         self.model.apply(weights_init)
         n = x.shape[0]
         batch_size = min(n, 128)
-        epochs = 2000
-        optimizer = optim.SGD(self.model.parameters(), lr = 0.05, weight_decay = 1e-5)
+        epochs = 3000 * 10
+        optimizer = optim.SGD(self.model.parameters(), lr = 0.01, weight_decay = 1e-5)
         mse = nn.MSELoss(reduction='none')
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = epochs, eta_min=1e-3)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = epochs, eta_min=1e-2)
         weight = (w.copy())
         weight /= weight.mean()
-        last_loss = 1000000
-        current_loss = 0
-        last_ep = -1
+
+        weight[weight > 10.0] = 10.0
+        weight[weight < 0.1] = 0.1
+        weight /= weight.mean()
+
+        print(weight.max())
+        intv = 3000
+        tao = self.tao
+        lam = self.lam
         for ep in range(epochs):
             current_loss = 0
             idx = np.random.permutation(n)
@@ -251,19 +263,53 @@ class MCDropoutRegressor:
                 w_batch = torch.FloatTensor(weight[idx[op:ed]]).to(self.device)
                 pre = self.model(x_batch, t_batch)
                 loss = (mse(pre, y_batch) * w_batch).mean()
-
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
                 current_loss += loss.detach().cpu().item() * (ed - op)
-            if ((ep + 1) % 200 == 0):
+            if ((ep + 1) % (epochs // 100) == 0):
                 print('Epoch %d, Loss %f' % (ep + 1, current_loss / n))
-            scheduler.step()
-            if (last_loss > current_loss):
-                last_loss = current_loss
-                last_ep = ep
-            if (ep - last_ep > 5000):
-                break
+            if ((ep + 1) % intv == 0):
+                '''
+                t_star = self.search_optimal_t(x)
+                fz = self.gau_ker((t_star - t) / tao)
+                fm = self.norm_constant(t_star, tao)
+                '''
+                print('TE', tao)
+                fz = np.exp(self.predict_eval(x, t) / tao)
+                fm = self.f_constant(x, tao)
+
+                weight = (lam * fz / fm + 1) * w
+                weight /= weight.mean()
+
+                weight[weight > 10.0] = 10.0
+                weight[weight < 0.1] = 0.1
+                weight /= weight.mean()
+
+                print('ESZ', (np.sum(weight)) ** 2 / np.sum(weight ** 2))
+                if (epochs - ep > intv // 2):
+                    dm_t2 = np.zeros([n, 1])
+                    bs = 512
+                    for i in range(0, n, bs):
+                        op, ed = i, min(n, i + bs)
+                        dm_t2[op:ed] = self.search_optimal_t(x[op:ed])
+                    dm_y2 = self.om.GetOutcome(x, dm_t2)
+                    print('DM Search Optimized Policy Value:', dm_y2.mean())  
+                    #self.model.apply(weights_init)
+            #scheduler.step()
+
+    def f_constant(self, x, tao, resolution = 1000):
+        ret = None
+        for i in range(resolution + 1):
+            t = np.ones([x.shape[0], 1]) * self.rs * i / resolution
+            y_pre = self.predict_eval(x, t)
+            if (i == 0):
+                ret = np.exp(y_pre / tao)
+            else:
+                ret += np.exp(y_pre / tao)
+        ret /= (resolution + 1)
+        return ret        
+
     def predict_one(self, x, t):
         res = 0
         res2 = 0
@@ -335,45 +381,28 @@ class MCDropoutRegressor:
                 pre + un * 1.96, pre - un * 1.96))
         f.close()
 
-    def norm_constant(self, x, mu, tao, resolution = 50):
-        ret = None
+    def norm_constant(self, t, tao, resolution = 1000):
+        ret = np.zeros(t.shape)
         for i in range(resolution + 1):
-            t = np.ones([x.shape[0], 1]) * self.rs * i / resolution
-            y_pre = self.predict_eval(x, t)
-            if (i == 0):
-                ret = np.exp(y_pre / tao)
-            else:
-                ret += np.exp(y_pre / tao)
+            pt = np.ones(t.shape) * self.rs * i / resolution
+            ret += self.gau_ker((t - pt) / tao)
         ret /= (resolution + 1)
         return ret
 
     def train_adaptively(self, x, t, y, outcome_model, ww = None):
-        iters = 10
+        iters = 1
         n = x.shape[0]
         if (ww is None):
             w_dbs = np.ones([n, 1])
         else:
             w_dbs = ww.copy()
         tao = 4.0
-        w_att = np.ones([n, 1])
-        ll = [41, 1505, 276, 594, 435, 779, 348, 1990, 1433, 
-                181, 1230, 1787, 1678, 1153, 564, 256, 281, 88, 1149, 1831]
-        for i in range(iters):
-            w = w_att * w_dbs
-            w /= w.mean()
-            print(np.square(w.sum()) / (w * w).sum())
-            print(w.max())
-            self.train(x, t, y, w)
-            y_pre = self.predict_eval(x, t)
-            w_new = np.exp(y_pre / tao)
-            fm = self.norm_constant(x, tao, 50)
-            w_new /= fm
-            w_new /= w_new.mean()
-            w_att = w_new
-            if (i < iters - 1):
-                continue
-            for j in range(20):
-                self.look_response_curve(i, x[ll[j]:ll[j] + 1], outcome_model)
+        print(t[561], t[994], t[1481], t[1154])
+        print(np.square(np.sum(w_dbs)) / (np.sum(w_dbs * w_dbs)))
+        self.train(x, t, y, w_dbs)
+        ll = [561, 994, 1481, 1154]
+        for i in range(len(ll)):
+            self.look_response_curve(0, x[ll[i]:ll[i] + 1], outcome_model)
 
 class QuantileRegressor:
     def __init__(self, context_dim):
