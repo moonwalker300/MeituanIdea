@@ -230,26 +230,21 @@ class MCDropoutRegressor:
 
         self.lam = lam
         self.tao = tao
-        print('TTT', self.tao)
     def gau_ker(self, t):
         return np.exp(-t * t / 2) / np.sqrt(2 * np.pi)
     def train(self, x, t, y, w):
         self.model.apply(weights_init)
         n = x.shape[0]
         batch_size = min(n, 128)
-        epochs = 3000 * 10
+        epochs = 3000 * 1
         optimizer = optim.SGD(self.model.parameters(), lr = 0.01, weight_decay = 1e-5)
         mse = nn.MSELoss(reduction='none')
         scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = epochs, eta_min=1e-2)
         weight = (w.copy())
         weight /= weight.mean()
 
-        weight[weight > 10.0] = 10.0
-        weight[weight < 0.1] = 0.1
-        weight /= weight.mean()
-
         print(weight.max())
-        intv = 3000
+        intv = 300
         tao = self.tao
         lam = self.lam
         for ep in range(epochs):
@@ -275,16 +270,20 @@ class MCDropoutRegressor:
                 fz = self.gau_ker((t_star - t) / tao)
                 fm = self.norm_constant(t_star, tao)
                 '''
-                print('TE', tao)
                 fz = np.exp(self.predict_eval(x, t) / tao)
                 fm = self.f_constant(x, tao)
-
+                
                 weight = (lam * fz / fm + 1) * w
                 weight /= weight.mean()
 
-                weight[weight > 10.0] = 10.0
-                weight[weight < 0.1] = 0.1
-                weight /= weight.mean()
+                ll = np.array([1813, 1541, 378, 809, 1669, 1547, 1542, 1451, 339, 489])
+                print('Max sample weight', (fz / fm).squeeze()[ll])
+                print(w.squeeze()[ll])
+                ll = np.array([659, 0, 777, 1949, 1503, 702, 465, 106, 63, 33])
+                print('Min sample weight', (fz / fm).squeeze()[ll])
+                print(w.squeeze()[ll])
+
+                print((fz / fm).mean(), (fz / fm).std())
 
                 print('ESZ', (np.sum(weight)) ** 2 / np.sum(weight ** 2))
                 if (epochs - ep > intv // 2):
@@ -293,6 +292,7 @@ class MCDropoutRegressor:
                     for i in range(0, n, bs):
                         op, ed = i, min(n, i + bs)
                         dm_t2[op:ed] = self.search_optimal_t(x[op:ed])
+                    print((np.abs(dm_t2 - t)).mean())
                     dm_y2 = self.om.GetOutcome(x, dm_t2)
                     print('DM Search Optimized Policy Value:', dm_y2.mean())  
                     #self.model.apply(weights_init)

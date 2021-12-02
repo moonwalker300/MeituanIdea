@@ -13,14 +13,13 @@ def RMSE(pre, target):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--lam', type=float, default=20.0, help='Lambda')
-parser.add_argument('--tao', type=float, default=3.0, help='Tao')
+parser.add_argument('--tao', type=float, default=0.2, help='Tao')
 parser.add_argument('--ifweight', type=int, default=1, help='If Reweight')
 args = parser.parse_args()
 lam = args.lam
 tao = args.tao
 iw = args.ifweight
-print(tao)
-n = 5000
+n = 10000
 p = 3
 rs = 3.0#for exp (3.0 for Exp)
 ifnew_param = False
@@ -35,7 +34,6 @@ print(t.mean(), t.std())
 print(y.mean(), y.std())
 print('Inverse Propensity Score Weight STD and Mean', np.std(1 / ps), np.mean(1 / ps))
 print((1 / ps).max())
-
 def manual_seed(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -44,10 +42,11 @@ def manual_seed(seed):
 optim_t, optim_y = outcome_model.BestTreatmentOutcome(x)
 print('Optimal Policy Value:', optim_y.mean())
 
+
 res_tr_list = []
 res_te_list = []
 value_list = []
-for i in range(0, 3):
+for i in range(0, 1):
     manual_seed(i)
     if (iw > 0):
         w = decor_weight(x, t, rs)
@@ -82,6 +81,11 @@ for i in range(0, 3):
     print(idx[-20:])
     print(np.concatenate([optim_y[idx[-20:]], dm_y2[idx[-20:]]], axis = 1))
     print('Over optimistic', gap[(dm_t2.squeeze() > 2.999) | (dm_t2.squeeze() < 0.001)].sum() / n)
+
+    y_pre, _ = reg.predict(x, optim_t)
+    print('Part 1', RMSE(y_pre, optim_y) ** 2)
+    y_pre, _ = reg.predict(x, dm_t2)
+    print('Part 2', RMSE(y_pre, dm_y2) ** 2)
     value_list.append(dm_y2.mean())
 
 print('Train:', sum(res_tr_list) / len(res_tr_list))
