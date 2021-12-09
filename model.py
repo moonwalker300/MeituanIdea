@@ -230,26 +230,28 @@ class MCDropoutRegressor:
 
         self.lam = lam
         self.tao = tao
-        print('TTT', self.tao)
     def gau_ker(self, t):
         return np.exp(-t * t / 2) / np.sqrt(2 * np.pi)
     def train(self, x, t, y, w):
+        x_test = x.copy()
+        t_test = np.random.rand(x.shape[0], 1) * self.rs
         self.model.apply(weights_init)
         n = x.shape[0]
         batch_size = min(n, 128)
-        epochs = 3000 * 10
+        epochs = 4000 #2000
         optimizer = optim.SGD(self.model.parameters(), lr = 0.01, weight_decay = 1e-5)
         mse = nn.MSELoss(reduction='none')
         scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = epochs, eta_min=1e-2)
         weight = (w.copy())
         weight /= weight.mean()
 
-        weight[weight > 10.0] = 10.0
-        weight[weight < 0.1] = 0.1
-        weight /= weight.mean()
+        #weight[weight > 10.0] = 10.0
+        #weight[weight < 0.1] = 0.1
+        #weight /= weight.mean()
 
         print(weight.max())
-        intv = 3000
+        intv = 200 #100
+        st_ud = 1500 #800
         tao = self.tao
         lam = self.lam
         for ep in range(epochs):
@@ -267,27 +269,33 @@ class MCDropoutRegressor:
                 loss.backward()
                 optimizer.step()
                 current_loss += loss.detach().cpu().item() * (ed - op)
-            if ((ep + 1) % (epochs // 100) == 0):
+            if ((ep + 1) % 100 == 0):
                 print('Epoch %d, Loss %f' % (ep + 1, current_loss / n))
-            if ((ep + 1) % intv == 0):
-                '''
+            if (((ep + 1) % intv == 0) and (ep > st_ud)):
+                
                 t_star = self.search_optimal_t(x)
                 fz = self.gau_ker((t_star - t) / tao)
                 fm = self.norm_constant(t_star, tao)
                 '''
-                print('TE', tao)
                 fz = np.exp(self.predict_eval(x, t) / tao)
                 fm = self.f_constant(x, tao)
-
+                '''
                 weight = (lam * fz / fm + 1) * w
                 weight /= weight.mean()
-
-                weight[weight > 10.0] = 10.0
-                weight[weight < 0.1] = 0.1
-                weight /= weight.mean()
+                #print(fz[:100].squeeze())
+                #print(fm[:100].squeeze())
+                print((fz/fm).mean(), (fz/fm).std())
+                #weight[weight > 10.0] = 10.0
+                #weight[weight < 0.1] = 0.1
+                #weight /= weight.mean()
 
                 print('ESZ', (np.sum(weight)) ** 2 / np.sum(weight ** 2))
                 if (epochs - ep > intv // 2):
+                    y_pre, _ = self.predict(x, t)
+                    print(np.sqrt(np.mean(np.square(y_pre - self.om.GetOutcome(x, t)))))
+                    y_pre, _ = self.predict(x_test, t_test)
+                    print(np.sqrt(np.mean(np.square(y_pre - self.om.GetOutcome(x_test, t_test)))))
+
                     dm_t2 = np.zeros([n, 1])
                     bs = 512
                     for i in range(0, n, bs):
@@ -400,9 +408,9 @@ class MCDropoutRegressor:
         print(t[561], t[994], t[1481], t[1154])
         print(np.square(np.sum(w_dbs)) / (np.sum(w_dbs * w_dbs)))
         self.train(x, t, y, w_dbs)
-        ll = [561, 994, 1481, 1154]
+        ll = [1972, 1973, 1974]
         for i in range(len(ll)):
-            self.look_response_curve(0, x[ll[i]:ll[i] + 1], outcome_model)
+            self.look_response_curve(0, x[ll[i]:ll[i] + 1], self.om)
 
 class QuantileRegressor:
     def __init__(self, context_dim):

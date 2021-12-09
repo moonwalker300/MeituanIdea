@@ -1,0 +1,21 @@
+DM Search Optimized Policy Value: 1.223437
+DM Search Optimized Policy Value: 1.250089
+Value: 1.236763
+DM Search Optimized Policy Value: 1.081479
+DM Search Optimized Policy Value: 1.062067
+DM Search Optimized Policy Value: 1.063954
+DM Search Optimized Policy Value: 1.052057
+DM Search Optimized Policy Value: 0.962680
+Value: 1.044447
+DM Search Optimized Policy Value: 1.082036
+DM Search Optimized Policy Value: 1.109981
+DM Search Optimized Policy Value: 1.082026
+DM Search Optimized Policy Value: 1.102457
+DM Search Optimized Policy Value: 1.021359
+Value: 1.079572
+DM Search Optimized Policy Value: 0.993690
+DM Search Optimized Policy Value: 1.095915
+DM Search Optimized Policy Value: 1.056583
+DM Search Optimized Policy Value: 1.114900
+DM Search Optimized Policy Value: 0.954306
+Value: 1.043079

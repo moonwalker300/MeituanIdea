@@ -11,23 +11,34 @@ def RMSE(pre, target):
     mse = np.mean(np.square(pre - target))
     return np.sqrt(mse)
 
+class Log:
+    def __init__(self, filename):
+        self.filename = filename
+    def log(self, content):
+        with open(self.filename, "a") as f:
+            f.write(content + '\n')
+            f.close()
+        #print(content)
+
 parser = argparse.ArgumentParser()
-parser.add_argument('--lam', type=float, default=20.0, help='Lambda')
-parser.add_argument('--tao', type=float, default=3.0, help='Tao')
+parser.add_argument('--lam', type=float, default=10.0, help='Lambda')
+parser.add_argument('--tao', type=float, default=0.2, help='Tao')
 parser.add_argument('--ifweight', type=int, default=1, help='If Reweight')
+parser.add_argument('--samplesize', type=int, default=4000, help='If Reweight')
+parser.add_argument('--reexp', type=int, default=5, help='If Reweight')
 args = parser.parse_args()
 lam = args.lam
 tao = args.tao
 iw = args.ifweight
-print(tao)
-n = 5000
-p = 3
+repeat_exp = args.reexp
+n = args.samplesize
+p = 5
 rs = 3.0#for exp (3.0 for Exp)
 ifnew_param = False
-name_param = 'DD2'
+name_param = 'DD'
 params = Parameters(p, ifnew_param, name_param)
 ifnew_data = True
-name_data = 'DD2'
+name_data = 'DD'
 data = Dataset(n, p, params, ifnew_data, name_data, rs)
 x, t, y, ps = data.GetData()
 outcome_model = Exp_Outcome(params, rs)
@@ -35,7 +46,6 @@ print(t.mean(), t.std())
 print(y.mean(), y.std())
 print('Inverse Propensity Score Weight STD and Mean', np.std(1 / ps), np.mean(1 / ps))
 print((1 / ps).max())
-
 def manual_seed(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -44,10 +54,13 @@ def manual_seed(seed):
 optim_t, optim_y = outcome_model.BestTreatmentOutcome(x)
 print('Optimal Policy Value:', optim_y.mean())
 
+filename = 'lam_%f_tao_%f_iw_%d.txt' % (lam, tao, iw)
+fl = Log(filename)
+
 res_tr_list = []
 res_te_list = []
 value_list = []
-for i in range(0, 3):
+for i in range(0, repeat_exp):
     manual_seed(i)
     if (iw > 0):
         w = decor_weight(x, t, rs)
@@ -77,6 +90,7 @@ for i in range(0, 3):
         dm_t2[op:ed] = reg.search_optimal_t(x[op:ed])
     dm_y2 = outcome_model.GetOutcome(x, dm_t2)
     print('DM Search Optimized Policy Value:', dm_y2.mean())
+    fl.log('DM Search Optimized Policy Value: %f' % (dm_y2.mean()))
     gap = (optim_y - dm_y2).squeeze()
     idx = gap.argsort()
     print(idx[-20:])
@@ -88,6 +102,7 @@ print('Train:', sum(res_tr_list) / len(res_tr_list))
 print('Test:', sum(res_te_list) / len(res_te_list))
 print(value_list)
 print('Value:', sum(value_list) / len(value_list))
+fl.log('Value: %f' % (sum(value_list)/len(value_list)))
 exit(0)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

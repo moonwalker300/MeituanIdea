@@ -248,14 +248,18 @@ class Dataset:
         if (ifnew):
             np.random.seed(0)
             x = np.abs(np.random.normal(0, 1, size=[n, p]))
-            alpha = 8.0
+            alpha = 4.0
             behavior_policy = Exp_Policy(alpha, param, rs)
             outcome_model = Exp_Outcome(param, rs)
             t = behavior_policy.GetTreatment(x)
             print((t > 2.0).sum())
             y = outcome_model.GetOutcome(x, t)
-            y += np.random.normal(0, 0.2, size = y.shape)
+            #y += np.random.normal(0, 0.2, size = y.shape)
             ps = behavior_policy.GetProb(x, t)
+
+            x_val = np.abs(np.random.normal(0, 1, size = [n, p]))
+            t_val = behavior_policy.GetTreatment(x_val)
+            y_val = outcome_model.Getoutcome(x_val, t_val)
             np.save(name + 'x.npy', x)
             np.save(name + 't.npy', t)
             np.save(name + 'y.npy', y)
@@ -270,5 +274,11 @@ class Dataset:
         self.t = t
         self.y = y
         self.ps = ps
+        
+        self.x_val = x_val
+        self.t_val = t_val
+        self.y_val = y_val
     def GetData(self):
         return self.x, self.t, self.y, self.ps
+    def GetValData(self):
+        return self.x_val, self.t_val, self.y_val

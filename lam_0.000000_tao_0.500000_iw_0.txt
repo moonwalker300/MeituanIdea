@@ -1,0 +1,52 @@
+DM Search Optimized Policy Value: 1.220440
+Value: 1.220440
+DM Search Optimized Policy Value: 1.214548
+DM Search Optimized Policy Value: 1.069668
+DM Search Optimized Policy Value: 1.214548
+DM Search Optimized Policy Value: 1.069668
+DM Search Optimized Policy Value: 1.294149
+DM Search Optimized Policy Value: 1.243177
+DM Search Optimized Policy Value: 1.331568
+Value: 1.230622
+DM Search Optimized Policy Value: 0.198545
+DM Search Optimized Policy Value: 0.197677
+DM Search Optimized Policy Value: 0.197677
+DM Search Optimized Policy Value: 0.200249
+DM Search Optimized Policy Value: 0.197754
+Value: 0.198381
+DM Search Optimized Policy Value: 0.667628
+DM Search Optimized Policy Value: 0.815773
+DM Search Optimized Policy Value: 0.564225
+DM Search Optimized Policy Value: 0.489417
+DM Search Optimized Policy Value: 0.531721
+Value: 0.613753
+DM Search Optimized Policy Value: 0.521247
+DM Search Optimized Policy Value: 0.720314
+DM Search Optimized Policy Value: 0.569198
+DM Search Optimized Policy Value: 0.503933
+DM Search Optimized Policy Value: 0.546063
+Value: 0.572151
+DM Search Optimized Policy Value: 0.900604
+DM Search Optimized Policy Value: 1.055780
+DM Search Optimized Policy Value: 0.785194
+DM Search Optimized Policy Value: 0.985403
+DM Search Optimized Policy Value: 0.922738
+Value: 0.929944
+DM Search Optimized Policy Value: 1.002728
+DM Search Optimized Policy Value: 1.108914
+DM Search Optimized Policy Value: 0.911556
+DM Search Optimized Policy Value: 1.068314
+DM Search Optimized Policy Value: 1.054873
+Value: 1.029277
+DM Search Optimized Policy Value: 0.892960
+DM Search Optimized Policy Value: 1.058055
+DM Search Optimized Policy Value: 0.832463
+DM Search Optimized Policy Value: 1.027728
+DM Search Optimized Policy Value: 0.861406
+Value: 0.934522
+DM Search Optimized Policy Value: 0.762020
+DM Search Optimized Policy Value: 0.646164
+DM Search Optimized Policy Value: 0.746371
+DM Search Optimized Policy Value: 0.577604
+DM Search Optimized Policy Value: 0.703346
+Value: 0.687101
