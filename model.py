@@ -232,28 +232,37 @@ class MCDropoutRegressor:
         self.tao = tao
     def gau_ker(self, t):
         return np.exp(-t * t / 2) / np.sqrt(2 * np.pi)
-    def train(self, x, t, y, w):
+
+    def eval(self, x_val, t_val, y_val, w_val):
+        y_pre, _ = self.predict(x_val, t_val)
+        return np.mean(np.square(y_pre - y_val) * w_val)
+
+    def train(self, x, t, y, w, x_val, t_val, y_val, w_val):
         x_test = x.copy()
         t_test = np.random.rand(x.shape[0], 1) * self.rs
         self.model.apply(weights_init)
         n = x.shape[0]
         batch_size = min(n, 128)
-        epochs = 4000 #2000
+        epochs = 1500 if (n == 1500) else (8000000 // n) #2000 for 4000sample, 4000 for 2000sample
         optimizer = optim.SGD(self.model.parameters(), lr = 0.01, weight_decay = 1e-5)
         mse = nn.MSELoss(reduction='none')
         scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = epochs, eta_min=1e-2)
         weight = (w.copy())
         weight /= weight.mean()
+        weight_val = (w_val.copy())
+        weight_val /= weight_val.mean()
 
-        #weight[weight > 10.0] = 10.0
-        #weight[weight < 0.1] = 0.1
-        #weight /= weight.mean()
+        weight = np.clip(weight, 0.01, 100)
+        weight /= weight.mean()
+        weight_val = np.clip(weight_val, 0.01, 100)
+        weight_val /= weight_val.mean()
 
-        print(weight.max())
-        intv = 200 #100
-        st_ud = 1500 #800
+        intv = epochs // 20 #100 for 4000 sample, 200 for 2000 sample
+        st_ud = epochs * 2 // 5 #800 for 4000 sample, 1500 for 2000 sample
         tao = self.tao
         lam = self.lam
+
+        last_loss = 1000000.0
         for ep in range(epochs):
             current_loss = 0
             idx = np.random.permutation(n)
@@ -271,23 +280,31 @@ class MCDropoutRegressor:
                 current_loss += loss.detach().cpu().item() * (ed - op)
             if ((ep + 1) % 100 == 0):
                 print('Epoch %d, Loss %f' % (ep + 1, current_loss / n))
-            if (((ep + 1) % intv == 0) and (ep > st_ud)):
-                
+                val_loss = self.eval(x_val, t_val, y_val, weight_val)
+                if (val_loss > last_loss):
+                    break
+
+            if (((ep + 1) % intv == 0) and (ep > st_ud)):                
                 t_star = self.search_optimal_t(x)
                 fz = self.gau_ker((t_star - t) / tao)
                 fm = self.norm_constant(t_star, tao)
+
+                t_star_val = self.search_optimal_t(x_val)
+                fz_val = self.gau_ker((t_star_val - t_val) / tao)
+                fm_val = self.norm_constant(t_star_val, tao)
                 '''
                 fz = np.exp(self.predict_eval(x, t) / tao)
                 fm = self.f_constant(x, tao)
                 '''
                 weight = (lam * fz / fm + 1) * w
                 weight /= weight.mean()
-                #print(fz[:100].squeeze())
-                #print(fm[:100].squeeze())
+                weight = np.clip(weight, 0.01, 100)
+                weight /= weight.mean()
                 print((fz/fm).mean(), (fz/fm).std())
-                #weight[weight > 10.0] = 10.0
-                #weight[weight < 0.1] = 0.1
-                #weight /= weight.mean()
+                weight_val = (lam * fz_val / fm_val + 1) * w_val
+                weight_val /= weight_val.mean()
+                weight_val = np.clip(weight_val, 0.01, 100)
+                weight_val /= weight_val.mean()
 
                 print('ESZ', (np.sum(weight)) ** 2 / np.sum(weight ** 2))
                 if (epochs - ep > intv // 2):
@@ -397,17 +414,12 @@ class MCDropoutRegressor:
         ret /= (resolution + 1)
         return ret
 
-    def train_adaptively(self, x, t, y, outcome_model, ww = None):
-        iters = 1
+    def train_adaptively(self, x, t, y, outcome_model, ww, x_val, t_val, y_val, ww_val):
         n = x.shape[0]
-        if (ww is None):
-            w_dbs = np.ones([n, 1])
-        else:
-            w_dbs = ww.copy()
-        tao = 4.0
-        print(t[561], t[994], t[1481], t[1154])
+        w_dbs = ww.copy()
         print(np.square(np.sum(w_dbs)) / (np.sum(w_dbs * w_dbs)))
-        self.train(x, t, y, w_dbs)
+        w_dbs_val = ww_val.copy()
+        self.train(x, t, y, w_dbs, x_val, t_val, y_val, w_dbs_val)
         ll = [1972, 1973, 1974]
         for i in range(len(ll)):
             self.look_response_curve(0, x[ll[i]:ll[i] + 1], self.om)

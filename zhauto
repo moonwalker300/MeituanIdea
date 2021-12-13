@@ -1,11 +1,13 @@
 #!/bin/bash
-python main_eval.py --lam 0.0 --ifweight 0 > ExpSample2000nonoise_vanilla.txt
-python main_eval.py --lam 0.0 --ifweight 1 > ExpSample2000nonoiselam0.txt
-for tao in 0.2 0.5 1.0 2.0
+for al in 2.0 3.0 5.0
 do
-    for lam in 2.0 5.0 10.0 20.0
+    python main_eval.py --lam 0.0 --ifweight 0 --alpha $al >> "ValSample2000alpha"$al"nonoise_vanilla.txt"
+    python main_eval.py --lam 0.0 --ifweight 1 --alpha $al >> "ValSample2000alpha"$al"nonoiselam0.txt"
+    for tao in 0.2 0.5
     do
-        python main_eval.py --lam $lam --ifweight 1 --tao $tao  > "ExpSample2000nonoiselam"$lam"tao"$tao.txt
+        for lam in 2.0 5.0 10.0 20.0
+        do
+            python main_eval.py --lam $lam --ifweight 1 --tao $tao --alpha $al >> "ValSample2000alpha"$al"nonoiselam"$lam"tao"$tao.txt
+        done
     done
 done
-

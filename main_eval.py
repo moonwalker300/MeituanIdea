@@ -24,13 +24,15 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--lam', type=float, default=10.0, help='Lambda')
 parser.add_argument('--tao', type=float, default=0.2, help='Tao')
 parser.add_argument('--ifweight', type=int, default=1, help='If Reweight')
-parser.add_argument('--samplesize', type=int, default=4000, help='If Reweight')
-parser.add_argument('--reexp', type=int, default=5, help='If Reweight')
+parser.add_argument('--samplesize', type=int, default=2000, help='If Reweight')
+parser.add_argument('--reexp', type=int, default=10, help='If Reweight')
+parser.add_argument('--alpha', type=float, default=4.0, help='If Reweight')
 args = parser.parse_args()
 lam = args.lam
 tao = args.tao
 iw = args.ifweight
 repeat_exp = args.reexp
+alpha = args.alpha
 n = args.samplesize
 p = 5
 rs = 3.0#for exp (3.0 for Exp)
@@ -39,13 +41,19 @@ name_param = 'DD'
 params = Parameters(p, ifnew_param, name_param)
 ifnew_data = True
 name_data = 'DD'
-data = Dataset(n, p, params, ifnew_data, name_data, rs)
+data = Dataset(n, p, params, ifnew_data, name_data, rs, alpha)
 x, t, y, ps = data.GetData()
+x_val, t_val, y_val = data.GetValData()
 outcome_model = Exp_Outcome(params, rs)
+
+print('--------------------------------------------------------------------------')
+print(args)
+print('Model 2 hidden layers 20 units!') #default 2 hidden layers 20 units
 print(t.mean(), t.std())
 print(y.mean(), y.std())
 print('Inverse Propensity Score Weight STD and Mean', np.std(1 / ps), np.mean(1 / ps))
 print((1 / ps).max())
+
 def manual_seed(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -64,12 +72,15 @@ for i in range(0, repeat_exp):
     manual_seed(i)
     if (iw > 0):
         w = decor_weight(x, t, rs)
+        w_val = decor_weight(x_val, t_val, rs)
         w /= w.mean()
+        w_val /= w_val.mean()
     else:
-        w = np.ones([n, 1])
+        w = np.ones([x.shape[0], 1])
+        w_val = np.ones([x_val.shape[0], 1])
 
     reg = MCDropoutRegressor(p, rs, outcome_model, lam, tao)
-    reg.train_adaptively(x, t, y, outcome_model, w)
+    reg.train_adaptively(x, t, y, outcome_model, w, x_val, t_val, y_val, w_val)
 
     y_pre, _ = reg.predict(x, t)
     print(RMSE(y_pre, y))
@@ -103,6 +114,7 @@ print('Test:', sum(res_te_list) / len(res_te_list))
 print(value_list)
 print('Value:', sum(value_list) / len(value_list))
 fl.log('Value: %f' % (sum(value_list)/len(value_list)))
+
 exit(0)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

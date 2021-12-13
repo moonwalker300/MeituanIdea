@@ -10,3 +10,139 @@ DM Search Optimized Policy Value: 1.041539
 DM Search Optimized Policy Value: 1.113959
 DM Search Optimized Policy Value: 0.983609
 Value: 1.034755
+DM Search Optimized Policy Value: 0.997533
+Value: 0.997533
+DM Search Optimized Policy Value: 0.997533
+DM Search Optimized Policy Value: 1.075061
+DM Search Optimized Policy Value: 1.031408
+DM Search Optimized Policy Value: 1.078809
+DM Search Optimized Policy Value: 0.949595
+DM Search Optimized Policy Value: 0.903537
+DM Search Optimized Policy Value: 0.969014
+DM Search Optimized Policy Value: 0.990920
+DM Search Optimized Policy Value: 1.027237
+DM Search Optimized Policy Value: 0.930844
+Value: 0.995396
+DM Search Optimized Policy Value: 0.864545
+DM Search Optimized Policy Value: 1.075151
+DM Search Optimized Policy Value: 1.065435
+DM Search Optimized Policy Value: 1.069419
+DM Search Optimized Policy Value: 1.007847
+DM Search Optimized Policy Value: 0.928892
+DM Search Optimized Policy Value: 0.925401
+DM Search Optimized Policy Value: 1.092810
+DM Search Optimized Policy Value: 1.042316
+DM Search Optimized Policy Value: 1.061036
+Value: 1.013285
+DM Search Optimized Policy Value: 0.861748
+DM Search Optimized Policy Value: 1.075151
+DM Search Optimized Policy Value: 1.059468
+DM Search Optimized Policy Value: 1.074809
+DM Search Optimized Policy Value: 1.007847
+DM Search Optimized Policy Value: 0.928892
+DM Search Optimized Policy Value: 1.047920
+DM Search Optimized Policy Value: 1.076830
+DM Search Optimized Policy Value: 1.042316
+DM Search Optimized Policy Value: 1.061036
+Value: 1.023602
+DM Search Optimized Policy Value: 1.036207
+DM Search Optimized Policy Value: 0.822733
+DM Search Optimized Policy Value: 0.917907
+DM Search Optimized Policy Value: 0.777844
+DM Search Optimized Policy Value: 0.916400
+DM Search Optimized Policy Value: 0.982265
+DM Search Optimized Policy Value: 1.041601
+DM Search Optimized Policy Value: 0.936641
+DM Search Optimized Policy Value: 0.932110
+DM Search Optimized Policy Value: 0.893786
+Value: 0.925749
+DM Search Optimized Policy Value: 0.861748
+Value: 0.861748
+DM Search Optimized Policy Value: 0.986471
+DM Search Optimized Policy Value: 1.117685
+DM Search Optimized Policy Value: 1.067220
+DM Search Optimized Policy Value: 1.063380
+DM Search Optimized Policy Value: 1.046548
+DM Search Optimized Policy Value: 1.084601
+DM Search Optimized Policy Value: 0.979801
+DM Search Optimized Policy Value: 1.022867
+DM Search Optimized Policy Value: 1.069692
+DM Search Optimized Policy Value: 1.017040
+Value: 1.045530
+DM Search Optimized Policy Value: 1.022587
+DM Search Optimized Policy Value: 1.059230
+DM Search Optimized Policy Value: 1.030634
+DM Search Optimized Policy Value: 1.024281
+DM Search Optimized Policy Value: 0.978393
+DM Search Optimized Policy Value: 0.928314
+DM Search Optimized Policy Value: 1.059697
+DM Search Optimized Policy Value: 1.005327
+DM Search Optimized Policy Value: 0.984691
+DM Search Optimized Policy Value: 0.914282
+Value: 1.000744
+DM Search Optimized Policy Value: 1.022587
+DM Search Optimized Policy Value: 1.059230
+DM Search Optimized Policy Value: 1.030634
+DM Search Optimized Policy Value: 1.024281
+DM Search Optimized Policy Value: 0.978393
+DM Search Optimized Policy Value: 0.928314
+DM Search Optimized Policy Value: 1.059697
+DM Search Optimized Policy Value: 1.005327
+DM Search Optimized Policy Value: 0.984691
+DM Search Optimized Policy Value: 0.914282
+Value: 1.000744
+DM Search Optimized Policy Value: 1.117096
+DM Search Optimized Policy Value: 1.118610
+DM Search Optimized Policy Value: 1.118414
+DM Search Optimized Policy Value: 1.119072
+DM Search Optimized Policy Value: 1.118639
+DM Search Optimized Policy Value: 1.112934
+DM Search Optimized Policy Value: 1.114283
+DM Search Optimized Policy Value: 1.118178
+DM Search Optimized Policy Value: 1.120454
+DM Search Optimized Policy Value: 1.115589
+Value: 1.117327
+DM Search Optimized Policy Value: 1.024626
+DM Search Optimized Policy Value: 1.112270
+DM Search Optimized Policy Value: 1.103400
+DM Search Optimized Policy Value: 1.112487
+DM Search Optimized Policy Value: 1.099811
+DM Search Optimized Policy Value: 1.112422
+DM Search Optimized Policy Value: 1.067874
+DM Search Optimized Policy Value: 1.072723
+DM Search Optimized Policy Value: 1.106222
+DM Search Optimized Policy Value: 1.078709
+Value: 1.089054
+DM Search Optimized Policy Value: 0.830756
+DM Search Optimized Policy Value: 0.999278
+DM Search Optimized Policy Value: 1.066404
+DM Search Optimized Policy Value: 0.989254
+DM Search Optimized Policy Value: 0.832602
+DM Search Optimized Policy Value: 0.909879
+DM Search Optimized Policy Value: 0.851463
+DM Search Optimized Policy Value: 0.874621
+DM Search Optimized Policy Value: 0.879112
+DM Search Optimized Policy Value: 0.775773
+Value: 0.900914
+DM Search Optimized Policy Value: 1.092446
+DM Search Optimized Policy Value: 1.114608
+DM Search Optimized Policy Value: 1.102329
+DM Search Optimized Policy Value: 1.115936
+DM Search Optimized Policy Value: 1.112422
+DM Search Optimized Policy Value: 1.114255
+DM Search Optimized Policy Value: 1.109684
+DM Search Optimized Policy Value: 1.089209
+DM Search Optimized Policy Value: 1.121022
+DM Search Optimized Policy Value: 1.087239
+Value: 1.105915
+DM Search Optimized Policy Value: 1.007400
+DM Search Optimized Policy Value: 1.086882
+DM Search Optimized Policy Value: 1.051640
+DM Search Optimized Policy Value: 1.107454
+DM Search Optimized Policy Value: 1.058700
+DM Search Optimized Policy Value: 1.064211
+DM Search Optimized Policy Value: 1.012595
+DM Search Optimized Policy Value: 1.035226
+DM Search Optimized Policy Value: 1.053985
+DM Search Optimized Policy Value: 1.020290
+Value: 1.049838

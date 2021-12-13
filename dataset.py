@@ -244,11 +244,11 @@ class MT_Outcome:
         return y
 
 class Dataset:
-    def __init__(self, n, p, param, ifnew, name, rs):
+    def __init__(self, n, p, param, ifnew, name, rs, al = 4.0):
         if (ifnew):
             np.random.seed(0)
             x = np.abs(np.random.normal(0, 1, size=[n, p]))
-            alpha = 4.0
+            alpha = al
             behavior_policy = Exp_Policy(alpha, param, rs)
             outcome_model = Exp_Outcome(param, rs)
             t = behavior_policy.GetTreatment(x)
@@ -259,7 +259,7 @@ class Dataset:
 
             x_val = np.abs(np.random.normal(0, 1, size = [n, p]))
             t_val = behavior_policy.GetTreatment(x_val)
-            y_val = outcome_model.Getoutcome(x_val, t_val)
+            y_val = outcome_model.GetOutcome(x_val, t_val)
             np.save(name + 'x.npy', x)
             np.save(name + 't.npy', t)
             np.save(name + 'y.npy', y)

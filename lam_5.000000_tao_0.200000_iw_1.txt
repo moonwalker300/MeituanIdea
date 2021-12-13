@@ -19,3 +19,98 @@ DM Search Optimized Policy Value: 1.057127
 DM Search Optimized Policy Value: 1.114066
 DM Search Optimized Policy Value: 0.961574
 Value: 1.048191
+DM Search Optimized Policy Value: 1.057205
+DM Search Optimized Policy Value: 1.109993
+DM Search Optimized Policy Value: 1.106961
+DM Search Optimized Policy Value: 1.095049
+DM Search Optimized Policy Value: 1.087478
+DM Search Optimized Policy Value: 1.078345
+DM Search Optimized Policy Value: 0.264584
+DM Search Optimized Policy Value: 1.107089
+DM Search Optimized Policy Value: 1.110794
+DM Search Optimized Policy Value: 1.100142
+Value: 1.011764
+DM Search Optimized Policy Value: 1.102702
+DM Search Optimized Policy Value: 0.953962
+DM Search Optimized Policy Value: 1.059185
+DM Search Optimized Policy Value: 0.977288
+DM Search Optimized Policy Value: 1.055078
+DM Search Optimized Policy Value: 1.094139
+DM Search Optimized Policy Value: 0.915429
+DM Search Optimized Policy Value: 1.055408
+DM Search Optimized Policy Value: 1.059009
+DM Search Optimized Policy Value: 1.038737
+Value: 1.031094
+DM Search Optimized Policy Value: 1.102802
+DM Search Optimized Policy Value: 1.121628
+DM Search Optimized Policy Value: 1.120165
+DM Search Optimized Policy Value: 1.106715
+DM Search Optimized Policy Value: 1.087191
+DM Search Optimized Policy Value: 1.115047
+DM Search Optimized Policy Value: 1.090713
+DM Search Optimized Policy Value: 1.084972
+DM Search Optimized Policy Value: 1.075440
+DM Search Optimized Policy Value: 1.117474
+Value: 1.102215
+DM Search Optimized Policy Value: 1.104308
+DM Search Optimized Policy Value: 1.088873
+DM Search Optimized Policy Value: 1.069518
+DM Search Optimized Policy Value: 1.070300
+DM Search Optimized Policy Value: 1.008385
+DM Search Optimized Policy Value: 1.016844
+DM Search Optimized Policy Value: 1.099935
+DM Search Optimized Policy Value: 1.104308
+DM Search Optimized Policy Value: 1.088873
+DM Search Optimized Policy Value: 1.069518
+DM Search Optimized Policy Value: 1.070300
+DM Search Optimized Policy Value: 1.008385
+DM Search Optimized Policy Value: 1.016844
+DM Search Optimized Policy Value: 1.099935
+DM Search Optimized Policy Value: 1.077502
+DM Search Optimized Policy Value: 1.091959
+DM Search Optimized Policy Value: 1.030359
+Value: 1.065798
+DM Search Optimized Policy Value: 1.107451
+DM Search Optimized Policy Value: 1.120730
+DM Search Optimized Policy Value: 1.116107
+DM Search Optimized Policy Value: 1.119419
+DM Search Optimized Policy Value: 1.111843
+DM Search Optimized Policy Value: 1.115755
+DM Search Optimized Policy Value: 1.110542
+DM Search Optimized Policy Value: 1.107047
+DM Search Optimized Policy Value: 1.121497
+DM Search Optimized Policy Value: 1.105307
+Value: 1.113570
+DM Search Optimized Policy Value: 1.023908
+DM Search Optimized Policy Value: 1.122682
+DM Search Optimized Policy Value: 1.117701
+DM Search Optimized Policy Value: 1.107175
+DM Search Optimized Policy Value: 1.087554
+DM Search Optimized Policy Value: 1.107694
+DM Search Optimized Policy Value: 1.061441
+DM Search Optimized Policy Value: 1.065272
+DM Search Optimized Policy Value: 1.089994
+DM Search Optimized Policy Value: 1.077953
+Value: 1.086137
+DM Search Optimized Policy Value: 1.042869
+DM Search Optimized Policy Value: 1.105242
+DM Search Optimized Policy Value: 1.108012
+DM Search Optimized Policy Value: 1.093097
+DM Search Optimized Policy Value: 1.038119
+DM Search Optimized Policy Value: 1.107674
+DM Search Optimized Policy Value: 0.993361
+DM Search Optimized Policy Value: 1.061091
+DM Search Optimized Policy Value: 1.103046
+DM Search Optimized Policy Value: 0.993645
+Value: 1.064616
+DM Search Optimized Policy Value: 1.083172
+DM Search Optimized Policy Value: 1.101478
+DM Search Optimized Policy Value: 1.100911
+DM Search Optimized Policy Value: 1.102575
+DM Search Optimized Policy Value: 1.111596
+DM Search Optimized Policy Value: 1.108617
+DM Search Optimized Policy Value: 1.111515
+DM Search Optimized Policy Value: 1.079814
+DM Search Optimized Policy Value: 1.116092
+DM Search Optimized Policy Value: 1.078681
+Value: 1.099445
